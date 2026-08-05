@@ -1,0 +1,34 @@
+# Build outputs
+build/
+out/
+*.o
+*.so
+*.a
+*.arm64
+
+# Runtime outputs
+/captures/
+*.jpg
+*.jpeg
+*.png
+*.log
+*.pid
+
+# Test evidence is intentionally versioned under test-data/runs.
+!test-data/runs/**/*.jpg
+!test-data/runs/**/*.jpeg
+!test-data/runs/**/*.png
+!test-data/runs/**/*.log
+
+# Local configuration and credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# Editors and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
