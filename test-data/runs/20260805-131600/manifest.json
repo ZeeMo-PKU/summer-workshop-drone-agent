@@ -1,0 +1,32 @@
+[
+  {
+    "path": "captures/manual_down_20260805-131600_000001.jpg",
+    "bytes": 272975,
+    "sha256": "3b8ca5e138416fc0c7f2969d3d6623cd861dede6f405ea2f61405d9290b804eb"
+  },
+  {
+    "path": "captures/manual_down_20260805-131600_000002.jpg",
+    "bytes": 285534,
+    "sha256": "5a7250f57f36db8e1b65c87c6a644016a58e505c1e3eb5a6a8a0cc94da1de445"
+  },
+  {
+    "path": "captures/manual_down_20260805-131600_000003.jpg",
+    "bytes": 285559,
+    "sha256": "1295e5128d329e8a8d079258b855fbb8eb1bb755945ede073b0d63318c4965de"
+  },
+  {
+    "path": "metadata.txt",
+    "bytes": 1598,
+    "sha256": "88087201403c5d728875cd0a6182b33f07a3b21f575927bff27d95f55653ba5c"
+  },
+  {
+    "path": "notes.md",
+    "bytes": 1518,
+    "sha256": "3af259f3381bfca97c78f512a18603ef6b1ab0f21f7715ea56869e573b5e1684"
+  },
+  {
+    "path": "run.json",
+    "bytes": 467,
+    "sha256": "7ae83eaf664a4cbe53815b682e1787e43138d4c40b300d036449ac24bca8d481"
+  }
+]
