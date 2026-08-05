@@ -7,7 +7,7 @@
 当前基线来自服务器 `/opt/iking/match_agent/match.cpp`，下载时 SHA-256：
 
 ```text
-60e93d7a095b07f4f2db5600b9e2246923eb12294c0774a04e1c186d0ef90a9b
+b73940bbc3ef83678e2f2d9219d2b930c54e53b15ae5d0a90be10cdb795790f1
 ```
 
 已实现：

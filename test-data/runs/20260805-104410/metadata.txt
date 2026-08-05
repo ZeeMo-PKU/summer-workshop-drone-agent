@@ -1,0 +1,29 @@
+Test run: 20260805-104410
+Drone host: root@10.8.82.81
+Remote root: /opt/iking/match_agent
+Source: /opt/iking/match_agent/match.cpp
+Source SHA-256: b73940bbc3ef83678e2f2d9219d2b930c54e53b15ae5d0a90be10cdb795790f1
+Archived server binary SHA-256: f10707339263f1c76fc6f3ce984830d13c6b67ccc0b8e3520843d7694ed6adfa
+Temporary test binary: /tmp/match-test-20260805-104410
+Temporary test binary SHA-256: 4765a0da3dda14b50e1da031c0a1e8ec8bd4aed41da83396be208b8c584bc81f
+Compile flags: -std=c++17 -O2 -Wall -Wextra -Wpedantic
+Compile result: success, no warnings
+
+Remote artifacts:
+2026-08-05 10:50:19 +0800 187345 captures/round_1_scene_B.jpg
+SHA-256: 9c8f3700ba613ca071ab5f4e874b8dcbb69cefa8e8bedfd479bc6638b327ecaf
+2026-08-05 10:50:46 +0800 5393 captures/test-20260805-104410.log
+SHA-256: 43cfb4c125831bbf9d9bdd9cdb791c755c64819502cfe5aa3611b86026f461b8
+
+Final direct telemetry at 2026-08-05 10:51:59 +0800:
+flight_path: STANDBY
+flight_mode: FLY_MODE_POSITION
+armed: false
+sdk_mode: true
+altitude: 0
+relative_dock_altitude: 0
+speed_total: 0
+control_processes: []
+
+Public archive policy:
+The raw Front image was retained locally but excluded from this public repository because it contains people and the workshop environment.

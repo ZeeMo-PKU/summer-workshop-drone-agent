@@ -658,7 +658,7 @@ bool returnHome(iking::drone::Client& client, const std::string& reason) {
 
 void eventLoop(iking::drone::Client& client, bool execute) {
     std::unordered_set<std::string> handled_ids;
-    bool area_select = false; // 初始false选B，true选A
+    bool area_select = false; // 题目区初始false选B，true选A
     std::string current_scene = "B";
     int round_index = 1;
     bool match_started = false;

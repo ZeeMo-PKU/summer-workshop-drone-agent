@@ -1,0 +1,89 @@
+[startup] WARNING: --execute enabled; flight commands may run
+[FramePool] open begin send=fishEye_share_send recv=fishEye_share_recv one_way=0 wait_ms=30000
+[ipc][I] ipc sender started, id=fishEye_share_recv sock=/tmp/media_ipc_memfd_fishEye_share_recv.sock
+[FramePool] create share_recv ok stream=fishEye_share_recv
+[FramePool] connect share_send ok stream=fishEye_share_send attempt=1
+[FramePool] open ok mode=pull send=fishEye_share_send one_way=0 (drained stale frames)
+[sdk] openFramePool(Front) status=0
+[FramePool] open begin send=arRtspStream_share_send recv=arRtspStream_share_recv one_way=0 wait_ms=30000
+[ipc][I] ipc sender started, id=arRtspStream_share_recv sock=/tmp/media_ipc_memfd_arRtspStream_share_recv.sock
+[FramePool] create share_recv ok stream=arRtspStream_share_recv
+[FramePool] connect share_send ok stream=arRtspStream_share_send attempt=1
+[FramePool] open ok mode=pull send=arRtspStream_share_send one_way=0 (drained stale frames)
+[sdk] openFramePool(PodVisibleLight) status=0
+[startup] SDK connected; waiting for taskGuidance
+[ipc][I] ipc receiver connected, id=fishEye_share_recv epoch=6423696078538
+[ipc][I] ipc receiver connected, id=arRtspStream_share_recv epoch=6423726767540
+[taskGuidance] type=guid message=MATCH_STARTED
+[sdk] getModeStatus status=0
+[sdk] gripperClose status=0
+[sdk] takeOff(3m) status=0
+[match] takeoff accepted; waiting for POSITION
+[mode] TAKEOFF
+[mode] POSITION
+[match] takeoff completed
+[navigation] sending target: scene B
+[sdk] setPosition status=0
+[navigation] target=scene B distance=5.274475m altitude=0.880000m
+[navigation] target=scene B distance=5.274475m altitude=0.849000m
+[navigation] target=scene B distance=5.274475m altitude=0.846000m
+[navigation] target=scene B distance=5.274475m altitude=0.849000m
+[navigation] target=scene B distance=5.274475m altitude=0.854000m
+[navigation] target=scene B distance=4.615166m altitude=0.865000m
+[navigation] target=scene B distance=3.955856m altitude=0.892000m
+[navigation] target=scene B distance=1.977928m altitude=0.938000m
+[navigation] target=scene B distance=0.659309m altitude=0.979000m
+[taskGuidance] type=guid message=ENTERED_SCENE_B_TRIGGER_ZONE
+[navigation] target=scene B distance=0.000000m altitude=0.996000m
+[navigation] reached scene B; holding POSITION
+[match] no action for ENTERED_SCENE_B_TRIGGER_ZONE
+[taskGuidance] type=question message=图中车辆的车牌号码是什么？ A. 黑AFD195 B. 黑AFD175 C. 黑DFD175 [SIM_ORACLE question=REAL-4-02 expected=B slotA=B slotB=A slotC=C]
+[match] question received; answer logic is not implemented
+[taskGuidance] type=guid message=SCENE_TRIGGER_SUCCEEDED
+[FramePool] acquire ok (drain=3) n=1 seq=61 frame_index=52637 ts=1785898009886356094 1280x720 size=2764800
+[capture] Front saved /opt/iking/match_agent/captures/round_1_scene_B.jpg
+[FramePool] release/push ok n=1 seq=61 1280x720 size=2764800 elapsed_ms=0
+[round] flying to answer zone B observation point
+[navigation] sending target: answer B
+[sdk] setPosition status=0
+[navigation] target=answer B distance=6.054433m altitude=0.992000m
+[navigation] target=answer B distance=6.054433m altitude=0.992000m
+[ipc][I] ipc receiver disconnected, id=arRtspStream_share_recv
+[navigation] target=answer B distance=6.054433m altitude=0.990000m
+[navigation] target=answer B distance=6.054433m altitude=0.990000m
+[taskGuidance] type=guid message=EXITED_SCENE_B_TRIGGER_ZONE
+[navigation] target=answer B distance=5.489610m altitude=0.993000m
+[navigation] target=answer B distance=3.921150m altitude=0.992000m
+[navigation] target=answer B distance=2.352690m altitude=0.996000m
+[navigation] target=answer B distance=0.784230m altitude=0.998000m
+[navigation] target=answer B distance=0.000000m altitude=1.000000m
+[navigation] target=answer B distance=0.000000m altitude=0.999000m
+[navigation] reached answer B; holding POSITION
+[FramePool] acquire reconnect share_send=arRtspStream_share_send
+[capture] PodVisibleLight acquireFrame failed, status=-1
+[round] answer layout capture failed; continuing with selected zone
+[round] flying to selected answer A
+[navigation] sending target: answer A
+[sdk] setPosition status=0
+[navigation] target=answer A distance=0.424650m altitude=0.999000m
+[navigation] target=answer A distance=0.424650m altitude=0.999000m
+[navigation] target=answer A distance=0.424650m altitude=0.999000m
+[navigation] target=answer A distance=0.424650m altitude=1.000000m
+[navigation] target=answer A distance=0.000000m altitude=0.998000m
+[navigation] reached answer A; holding POSITION
+[sdk] gripperOpen status=-1 error=gimbalControlAngleSetFailed
+[round] gripperOpen failed; returning to start with the ball
+[round] returning to start zone
+[navigation] sending target: start
+[sdk] setPosition status=0
+[navigation] target=start distance=3.397201m altitude=0.998000m
+[navigation] target=start distance=3.397201m altitude=0.998000m
+[navigation] target=start distance=3.397201m altitude=0.998000m
+[navigation] target=start distance=3.397201m altitude=0.998000m
+[navigation] target=start distance=2.123251m altitude=0.995000m
+[navigation] target=start distance=0.424650m altitude=1.000000m
+[navigation] target=start distance=0.000000m altitude=0.999000m
+[navigation] target=start distance=0.000000m altitude=0.999000m
+[navigation] reached start; holding POSITION
+[round] start zone reached; waiting for next instruction
+[match] no action for EXITED_SCENE_B_TRIGGER_ZONE
