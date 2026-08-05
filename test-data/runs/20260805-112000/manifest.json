@@ -1,0 +1,27 @@
+[
+  {
+    "path": "captures/manual_down_0.jpg",
+    "bytes": 1548495,
+    "sha256": "5c1f79d02b0b4848a424e02f55eda7447e3045ec9f548be455228cd78d9863b7"
+  },
+  {
+    "path": "captures/manual_down_1.jpg",
+    "bytes": 1585444,
+    "sha256": "2ff6e20b04493087f2024ad426887db24ca9ddb54c61ef10ca4559eef80f79cf"
+  },
+  {
+    "path": "metadata.txt",
+    "bytes": 844,
+    "sha256": "bf7831a829a7dd2778ef12759a42f0d0b23ab0989db3556f3f167f6b3e1e602c"
+  },
+  {
+    "path": "notes.md",
+    "bytes": 1459,
+    "sha256": "e266e361f41078a906bb800e0ed434431d1798857335497b6a045f3994c1a678"
+  },
+  {
+    "path": "run.json",
+    "bytes": 401,
+    "sha256": "f9094a08b914464a3682989c70180ca5e7cf3d998edfb8cdf3d90640bc81e393"
+  }
+]

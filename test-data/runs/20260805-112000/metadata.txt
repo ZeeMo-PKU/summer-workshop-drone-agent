@@ -1,0 +1,26 @@
+Test run: 20260805-112000
+Drone host: root@10.8.82.81
+Capture type: manual pod down-camera diagnostic
+SDK channel: PodVisibleLight
+Capability camera: ov48
+Capability camera_type: light
+Share send: arRtspStream_share_send
+Share recv: arRtspStream_share_recv
+Device image service: http://192.168.1.120:8000/image/
+
+Capture files:
+captures/manual_down_0.jpg 1548495 bytes 4032x3024
+SHA-256: 5c1f79d02b0b4848a424e02f55eda7447e3045ec9f548be455228cd78d9863b7
+captures/manual_down_1.jpg 1585444 bytes 4032x3024
+SHA-256: 2ff6e20b04493087f2024ad426887db24ca9ddb54c61ef10ca4559eef80f79cf
+
+Final direct telemetry at 2026-08-05 11:31:47 +0800:
+flight_path: STANDBY
+flight_mode: FLY_MODE_POSITION
+armed: false
+sdk_mode: true
+altitude: 0
+control_processes: []
+
+Publication:
+The user explicitly authorized these project-test images for public repository use.
