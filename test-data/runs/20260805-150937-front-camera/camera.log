@@ -1,0 +1,29 @@
+[FramePool] open begin send=fishEye_share_send recv=fishEye_share_recv one_way=0 wait_ms=30000
+[ipc][I] ipc sender started, id=fishEye_share_recv sock=/tmp/media_ipc_memfd_fishEye_share_recv.sock
+[FramePool] create share_recv ok stream=fishEye_share_recv
+[FramePool] connect share_send ok stream=fishEye_share_send attempt=1
+[FramePool] open ok mode=pull send=fishEye_share_send one_way=0 (drained stale frames)
+openFramePool(Front): status=Ok(0)
+[08] streams send=fishEye_share_send recv=fishEye_share_recv
+
+======== 08 front camera acquire ========
+  1  acquire once
+  2  acquire loop [N]       (默认 50)
+  3  toggle save             (now off)
+  4  set prefix [path]       (now /tmp/sdk_front_cam_acq)
+  5  set every [N]           (now 1)
+  6  show settings
+  h  help
+  q  quit
+> prefix=/opt/iking/match_agent_flow_test/runs/20260805-150937-front-camera/captures/front
+> save=on
+> [FramePool] acquire ok n=1 seq=25 frame_index=40176 ts=1785913781631407001 1280x720 size=2764800
+[08] acquired #1 seq=25 frame_index=40176 timestamp_ns=1785913781631407001 1280x720 type=1 size=2764800
+[ipc][I] ipc receiver connected, id=fishEye_share_recv epoch=4880683241540
+saved /opt/iking/match_agent_flow_test/runs/20260805-150937-front-camera/captures/front_000001.jpg
+[FramePool] release/push ok n=1 seq=25 1280x720 size=2764800 elapsed_ms=1
+[08] batch done ok=1 timeouts=0 saved=1
+> unknown: q (h for help)
+> [FramePool] close send=fishEye_share_send recv=fishEye_share_recv one_way=0
+[ipc][I] ipc sender stopped, id=fishEye_share_recv
+done ok=1 timeouts=0 saved=1
