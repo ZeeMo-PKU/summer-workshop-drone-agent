@@ -1,0 +1,6 @@
+2026-08-05T06:36:31Z [startup] WARNING: --execute enabled; flight commands may run
+2026-08-05T06:36:34Z [sdk] getModeStatus(preflight) status=0
+2026-08-05T06:36:34Z [sdk] openFramePool(Front) status=0
+2026-08-05T06:36:34Z [sdk] openFramePool(PodVisibleLight) status=0
+2026-08-05T06:36:34Z [startup] SDK connected; waiting for taskGuidance
+2026-08-05T06:37:01Z [shutdown] disconnected

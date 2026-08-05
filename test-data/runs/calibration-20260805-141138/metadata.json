@@ -1,0 +1,25 @@
+{
+  "run_id": "calibration-20260805-141138",
+  "type": "grounded_gimbal_calibration",
+  "recorded_at": "2026-08-05T14:11:38+08:00",
+  "simulation": {
+    "parameter": "CFG_FLIGHTSIM",
+    "integer": 1,
+    "confirmed": true
+  },
+  "preflight": {
+    "flight_path": "STANDBY",
+    "armed": false,
+    "sdk_mode": true,
+    "altitude_m": 0
+  },
+  "presets": [
+    "center",
+    "down",
+    "pitch-negative",
+    "pitch-positive"
+  ],
+  "result": "blocked",
+  "flight_commands_sent": false,
+  "reason": "All four PodVisibleLight captures show the same forward-facing scene; no preset was verified as downward-facing."
+}

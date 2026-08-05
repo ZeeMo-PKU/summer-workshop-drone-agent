@@ -41,3 +41,12 @@ test-data/runs/YYYYMMDD-HHMMSS/
 
 2026-08-05 的已有下摄照片包含可识别人员，因此未加入公开仓库。
 
+## 隔离闭环测试
+
+`/opt/iking/match_agent_flow_test` 产生的完整运行目录使用专用脚本归档：
+
+```powershell
+.\tools\archive-flow-test-run.ps1 -RunId "20260805-140000"
+```
+
+脚本要求服务器清单存在，逐文件验证 SHA-256，并在提交前扫描凭据。使用 `-NoPush` 可只下载并校验。

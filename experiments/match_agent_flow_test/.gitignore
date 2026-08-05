@@ -1,0 +1,4 @@
+/build/
+/runs/
+/.secrets.env
+/.gimbal-preset-verified
