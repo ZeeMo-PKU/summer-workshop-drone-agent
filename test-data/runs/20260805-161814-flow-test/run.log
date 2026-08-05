@@ -1,0 +1,42 @@
+2026-08-05T08:18:18Z [startup] WARNING: --execute enabled; flight commands may run
+2026-08-05T08:18:20Z [sdk] getModeStatus(preflight) status=0
+2026-08-05T08:18:20Z [sdk] getPodCapability(preflight) status=0
+2026-08-05T08:18:20Z [startup] SDK connected; waiting for taskGuidance
+2026-08-05T08:18:41Z [taskGuidance] type=guid message=MATCH_STARTED
+2026-08-05T08:18:43Z [sdk] gripperClose status=0
+2026-08-05T08:18:44Z [sdk] getModeStatus status=0
+2026-08-05T08:18:44Z [sdk] takeOff(1.57m) status=0
+2026-08-05T08:18:44Z [match] takeoff accepted; waiting for POSITION
+2026-08-05T08:18:44Z [mode] TAKEOFF
+2026-08-05T08:19:00Z [mode] POSITION
+2026-08-05T08:19:00Z [match] takeoff completed
+2026-08-05T08:19:00Z [navigation] sending target: scene B
+2026-08-05T08:19:00Z [sdk] setPosition status=0
+2026-08-05T08:19:00Z [navigation] target=scene B distance=5.274475m altitude=1.461000m altitude_error=0.109000m
+2026-08-05T08:19:01Z [navigation] target=scene B distance=5.274475m altitude=1.424000m altitude_error=0.146000m
+2026-08-05T08:19:02Z [navigation] target=scene B distance=5.274475m altitude=1.418000m altitude_error=0.152000m
+2026-08-05T08:19:04Z [navigation] target=scene B distance=5.274475m altitude=1.424000m altitude_error=0.146000m
+2026-08-05T08:19:05Z [navigation] target=scene B distance=5.274475m altitude=1.436000m altitude_error=0.134000m
+2026-08-05T08:19:07Z [navigation] target=scene B distance=3.296547m altitude=1.469000m altitude_error=0.101000m
+2026-08-05T08:19:08Z [navigation] target=scene B distance=1.977928m altitude=1.514000m altitude_error=0.056000m
+2026-08-05T08:19:09Z [navigation] target=scene B distance=1.318619m altitude=1.541000m altitude_error=0.029000m
+2026-08-05T08:19:10Z [taskGuidance] type=guid message=ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-05T08:19:10Z [navigation] target=scene B distance=0.000000m altitude=1.563000m altitude_error=0.007000m
+2026-08-05T08:19:12Z [navigation] target=scene B distance=0.000000m altitude=1.563000m altitude_error=0.007000m
+2026-08-05T08:19:12Z [navigation] reached scene B; holding POSITION
+2026-08-05T08:19:12Z [round] scene B reached; waiting for trigger
+2026-08-05T08:19:12Z [event] ignored in current single-round state: ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-05T08:19:13Z [taskGuidance] type=question message=图中共有多少辆地面车辆？ A. 2 B. 3 C. 1 [SIM_ORACLE question=REAL-3-01 expected=B slotA=A slotB=B slotC=C]
+2026-08-05T08:19:13Z [round] question arrived before trigger; cached for this round
+2026-08-05T08:19:14Z [taskGuidance] type=guid message=SCENE_TRIGGER_SUCCEEDED
+2026-08-05T08:19:14Z [match] question received: 图中共有多少辆地面车辆？ A. 2 B. 3 C. 1 [SIM_ORACLE question=REAL-3-01 expected=B slotA=A slotB=B slotC=C]
+2026-08-05T08:19:14Z [sdk] openFramePool(Front) status=0
+2026-08-05T08:19:14Z [capture] Front saved /opt/iking/match_agent_flow_test/runs/20260805-161814/captures/scene_B.jpg
+2026-08-05T08:19:15Z [abort] recognition failed or returned an invalid token
+2026-08-05T08:19:15Z [return] reason=recognition failed or returned an invalid token
+2026-08-05T08:19:15Z [sdk] returnToHome status=0
+2026-08-05T08:19:15Z [mode] LANDING
+2026-08-05T08:19:31Z [taskGuidance] type=guid message=EXITED_SCENE_B_TRIGGER_ZONE
+2026-08-05T08:20:11Z [mode] STANDBY
+2026-08-05T08:20:11Z [return] landing confirmed
+2026-08-05T08:20:11Z [shutdown] disconnected

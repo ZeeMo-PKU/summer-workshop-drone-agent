@@ -1,0 +1,5 @@
+{"message":"MATCH_STARTED","recorded_at":"2026-08-05T08:31:06Z","request_id":"0005f007-2006-400a-8005-00020003000d","type":"guid"}
+{"message":"ENTERED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-05T08:31:36Z","request_id":"000c500e-b006-400d-8000-000b00000008","type":"guid"}
+{"message":"图中车辆的车牌号码是什么？ A. 皖AM4516 B. 皖CM4516 C. 皖AM7516 [SIM_ORACLE question=REAL-4-03 expected=A slotA=C slotB=A slotC=B]","recorded_at":"2026-08-05T08:31:39Z","request_id":"00064001-c00e-4000-8009-000700080000","type":"question"}
+{"message":"SCENE_TRIGGER_SUCCEEDED","recorded_at":"2026-08-05T08:31:39Z","request_id":"0001d006-500c-4007-800c-0009000c000e","type":"guid"}
+{"message":"EXITED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-05T08:32:02Z","request_id":"0007200b-400a-400b-800f-000400060002","type":"guid"}

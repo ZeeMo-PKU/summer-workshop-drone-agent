@@ -1,0 +1,8 @@
+{"action":"getModeStatus(preflight)","ok":true,"recorded_at":"2026-08-05T08:18:20Z","status":0}
+{"action":"getPodCapability(preflight)","ok":true,"recorded_at":"2026-08-05T08:18:20Z","status":0}
+{"action":"gripperClose","ok":true,"recorded_at":"2026-08-05T08:18:43Z","status":0}
+{"action":"getModeStatus","ok":true,"recorded_at":"2026-08-05T08:18:44Z","status":0}
+{"action":"takeOff(1.57m)","ok":true,"recorded_at":"2026-08-05T08:18:44Z","status":0}
+{"action":"setPosition","ok":true,"recorded_at":"2026-08-05T08:19:00Z","status":0}
+{"action":"openFramePool(Front)","ok":true,"recorded_at":"2026-08-05T08:19:14Z","status":0}
+{"action":"returnToHome","ok":true,"recorded_at":"2026-08-05T08:19:15Z","status":0}

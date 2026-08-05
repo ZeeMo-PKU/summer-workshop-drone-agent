@@ -1,0 +1,39 @@
+2026-08-05T08:11:09Z [startup] WARNING: --execute enabled; flight commands may run
+2026-08-05T08:11:11Z [sdk] getModeStatus(preflight) status=0
+2026-08-05T08:11:11Z [sdk] getPodCapability(preflight) status=0
+2026-08-05T08:11:11Z [startup] SDK connected; waiting for taskGuidance
+2026-08-05T08:12:56Z [taskGuidance] type=guid message=MATCH_STARTED
+2026-08-05T08:12:58Z [sdk] gripperClose status=0
+2026-08-05T08:12:59Z [sdk] getModeStatus status=0
+2026-08-05T08:12:59Z [sdk] takeOff(1.57m) status=0
+2026-08-05T08:12:59Z [match] takeoff accepted; waiting for POSITION
+2026-08-05T08:12:59Z [mode] TAKEOFF
+2026-08-05T08:13:14Z [mode] POSITION
+2026-08-05T08:13:14Z [match] takeoff completed
+2026-08-05T08:13:14Z [navigation] sending target: scene B
+2026-08-05T08:13:14Z [sdk] setPosition status=0
+2026-08-05T08:13:14Z [navigation] target=scene B distance=5.274475m altitude=1.476000m altitude_error=0.094000m
+2026-08-05T08:13:15Z [navigation] target=scene B distance=5.274475m altitude=1.445000m altitude_error=0.125000m
+2026-08-05T08:13:16Z [navigation] target=scene B distance=5.274475m altitude=1.425000m altitude_error=0.145000m
+2026-08-05T08:13:18Z [navigation] target=scene B distance=5.274475m altitude=1.430000m altitude_error=0.140000m
+2026-08-05T08:13:19Z [navigation] target=scene B distance=5.274475m altitude=1.436000m altitude_error=0.134000m
+2026-08-05T08:13:20Z [navigation] target=scene B distance=5.274475m altitude=1.446000m altitude_error=0.124000m
+2026-08-05T08:13:21Z [navigation] target=scene B distance=3.296547m altitude=1.472000m altitude_error=0.098000m
+2026-08-05T08:13:23Z [navigation] target=scene B distance=1.977928m altitude=1.515000m altitude_error=0.055000m
+2026-08-05T08:13:24Z [navigation] target=scene B distance=0.659309m altitude=1.553000m altitude_error=0.017000m
+2026-08-05T08:13:25Z [taskGuidance] type=guid message=ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-05T08:13:26Z [navigation] target=scene B distance=0.000000m altitude=1.566000m altitude_error=0.004000m
+2026-08-05T08:13:26Z [navigation] reached scene B; holding POSITION
+2026-08-05T08:13:26Z [round] scene B reached; waiting for trigger
+2026-08-05T08:13:26Z [event] ignored in current single-round state: ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-05T08:13:28Z [taskGuidance] type=question message=图中车辆的车牌号码是什么？ A. 黑AFD195 B. 黑AFD175 C. 黑DFD175 [SIM_ORACLE question=REAL-4-02 expected=B slotA=C slotB=B slotC=A]
+2026-08-05T08:13:28Z [event] ignored in current single-round state: 图中车辆的车牌号码是什么？ A. 黑AFD195 B. 黑AFD175 C. 黑DFD175 [SIM_ORACLE question=REAL-4-02 expected=B slotA=C slotB=B slotC=A]
+2026-08-05T08:13:28Z [taskGuidance] type=guid message=SCENE_TRIGGER_SUCCEEDED
+2026-08-05T08:13:28Z [round] scene triggered; waiting for question
+2026-08-05T08:13:43Z [return] reason=process exit
+2026-08-05T08:13:43Z [sdk] returnToHome status=0
+2026-08-05T08:13:43Z [mode] LANDING
+2026-08-05T08:13:59Z [taskGuidance] type=guid message=EXITED_SCENE_B_TRIGGER_ZONE
+2026-08-05T08:14:38Z [mode] STANDBY
+2026-08-05T08:14:38Z [return] landing confirmed
+2026-08-05T08:14:38Z [shutdown] disconnected

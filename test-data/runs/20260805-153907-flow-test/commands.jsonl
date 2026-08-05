@@ -1,0 +1,4 @@
+{"action":"getModeStatus(preflight)","ok":true,"recorded_at":"2026-08-05T07:39:12Z","status":0}
+{"action":"openFramePool(Front)","ok":true,"recorded_at":"2026-08-05T07:39:12Z","status":0}
+{"action":"openFramePool(PodVisibleLight)","ok":true,"recorded_at":"2026-08-05T07:39:12Z","status":0}
+{"action":"gripperClose","error":"gimbalControlAngleSetFailed","ok":false,"recorded_at":"2026-08-05T07:40:13Z","status":-1}

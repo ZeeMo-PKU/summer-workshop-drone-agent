@@ -1,0 +1,11 @@
+2026-08-05T07:39:10Z [startup] WARNING: --execute enabled; flight commands may run
+2026-08-05T07:39:12Z [sdk] getModeStatus(preflight) status=0
+2026-08-05T07:39:12Z [sdk] openFramePool(Front) status=0
+2026-08-05T07:39:12Z [sdk] openFramePool(PodVisibleLight) status=0
+2026-08-05T07:39:12Z [startup] SDK connected; waiting for taskGuidance
+2026-08-05T07:40:13Z [taskGuidance] type=guid message=MATCH_STARTED
+2026-08-05T07:40:13Z [sdk] gripperClose status=-1 error=gimbalControlAngleSetFailed
+2026-08-05T07:40:13Z [abort] takeoff or scene B navigation failed
+2026-08-05T07:40:13Z [return] reason=takeoff or scene B navigation failed
+2026-08-05T07:40:13Z [return] already STANDBY
+2026-08-05T07:40:14Z [shutdown] disconnected

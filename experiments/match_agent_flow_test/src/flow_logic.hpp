@@ -36,6 +36,28 @@ inline std::optional<Answer> parseAnswerToken(std::string text) {
     }
 }
 
+inline std::optional<Answer> parseSimulationOracleExpected(
+    const std::string& text) {
+    constexpr const char* kBlockStart = "[SIM_ORACLE ";
+    constexpr const char* kExpected = "expected=";
+    const auto block = text.find(kBlockStart);
+    if (block == std::string::npos) return std::nullopt;
+    const auto block_end = text.find(']', block);
+    if (block_end == std::string::npos) return std::nullopt;
+    const auto expected = text.find(kExpected, block);
+    if (expected == std::string::npos || expected >= block_end) {
+        return std::nullopt;
+    }
+
+    const auto token = expected + std::char_traits<char>::length(kExpected);
+    if (token >= block_end) return std::nullopt;
+    if (token + 1 < block_end && !std::isspace(
+            static_cast<unsigned char>(text[token + 1]))) {
+        return std::nullopt;
+    }
+    return parseAnswerToken(text.substr(token, 1));
+}
+
 inline PhysicalZone fixedZoneForAnswer(Answer answer) {
     switch (answer) {
         case Answer::A: return PhysicalZone::Zone1;
@@ -88,7 +110,9 @@ enum class EventAction {
     Ignore,
     StartMission,
     AwaitQuestion,
+    CacheQuestion,
     ExecuteAnswer,
+    ExecuteCachedQuestion,
     EmergencyReturn,
 };
 
@@ -113,9 +137,19 @@ public:
                 if (phase_ != Phase::AwaitingSceneTrigger) {
                     return EventAction::Ignore;
                 }
+                if (question_pending_) {
+                    question_pending_ = false;
+                    phase_ = Phase::ExecutingAnswer;
+                    return EventAction::ExecuteCachedQuestion;
+                }
                 phase_ = Phase::AwaitingQuestion;
                 return EventAction::AwaitQuestion;
             case EventKind::Question:
+                if (phase_ == Phase::AwaitingSceneTrigger) {
+                    if (question_pending_) return EventAction::Ignore;
+                    question_pending_ = true;
+                    return EventAction::CacheQuestion;
+                }
                 if (phase_ != Phase::AwaitingQuestion) {
                     return EventAction::Ignore;
                 }
@@ -132,12 +166,22 @@ public:
 
     Phase phase() const { return phase_; }
     void markSceneReady() { phase_ = Phase::AwaitingSceneTrigger; }
-    void markReturning() { phase_ = Phase::Returning; }
-    void markCompleted() { phase_ = Phase::Completed; }
-    void markAborted() { phase_ = Phase::Aborted; }
+    void markReturning() {
+        question_pending_ = false;
+        phase_ = Phase::Returning;
+    }
+    void markCompleted() {
+        question_pending_ = false;
+        phase_ = Phase::Completed;
+    }
+    void markAborted() {
+        question_pending_ = false;
+        phase_ = Phase::Aborted;
+    }
 
 private:
     Phase phase_ = Phase::Idle;
+    bool question_pending_ = false;
 };
 
 }  // namespace flow

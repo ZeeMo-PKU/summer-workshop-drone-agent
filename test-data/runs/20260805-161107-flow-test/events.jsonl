@@ -1,0 +1,5 @@
+{"message":"MATCH_STARTED","recorded_at":"2026-08-05T08:12:56Z","request_id":"00016006-d005-4009-8000-0008000f0009","type":"guid"}
+{"message":"ENTERED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-05T08:13:25Z","request_id":"00023002-c002-4007-8004-0001000e000c","type":"guid"}
+{"message":"图中车辆的车牌号码是什么？ A. 黑AFD195 B. 黑AFD175 C. 黑DFD175 [SIM_ORACLE question=REAL-4-02 expected=B slotA=C slotB=B slotC=A]","recorded_at":"2026-08-05T08:13:28Z","request_id":"0008e00c-900b-4005-8000-000000030005","type":"question"}
+{"message":"SCENE_TRIGGER_SUCCEEDED","recorded_at":"2026-08-05T08:13:28Z","request_id":"000dc00a-5009-400f-800f-000e0007000b","type":"guid"}
+{"message":"EXITED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-05T08:13:59Z","request_id":"0004e004-1003-400e-8006-00000006000a","type":"guid"}

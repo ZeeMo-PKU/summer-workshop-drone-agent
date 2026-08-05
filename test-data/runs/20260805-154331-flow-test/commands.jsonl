@@ -1,0 +1,3 @@
+{"action":"getModeStatus(preflight)","ok":true,"recorded_at":"2026-08-05T07:43:33Z","status":0}
+{"action":"openFramePool(Front)","ok":true,"recorded_at":"2026-08-05T07:43:33Z","status":0}
+{"action":"openFramePool(PodVisibleLight)","error":"streamUnavailable","ok":false,"recorded_at":"2026-08-05T07:43:33Z","status":1006}

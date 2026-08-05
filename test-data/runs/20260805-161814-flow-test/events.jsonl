@@ -1,0 +1,5 @@
+{"message":"MATCH_STARTED","recorded_at":"2026-08-05T08:18:41Z","request_id":"000e3008-100d-4007-8001-00030000000f","type":"guid"}
+{"message":"ENTERED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-05T08:19:10Z","request_id":"00011007-600c-4001-800c-0002000b0004","type":"guid"}
+{"message":"图中共有多少辆地面车辆？ A. 2 B. 3 C. 1 [SIM_ORACLE question=REAL-3-01 expected=B slotA=A slotB=B slotC=C]","recorded_at":"2026-08-05T08:19:13Z","request_id":"00019003-400b-4006-8007-0009000a0001","type":"question"}
+{"message":"SCENE_TRIGGER_SUCCEEDED","recorded_at":"2026-08-05T08:19:14Z","request_id":"00005009-d00c-4000-8002-00050006000b","type":"guid"}
+{"message":"EXITED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-05T08:19:31Z","request_id":"000ef004-f00d-400e-8007-000100070001","type":"guid"}

@@ -39,6 +39,13 @@ target_link_libraries(gimbal_probe PRIVATE
     pthread)
 target_compile_options(gimbal_probe PRIVATE -Wall -Wextra -Wpedantic)
 
+add_executable(recovery_return src/recovery_return.cpp)
+target_link_libraries(recovery_return PRIVATE
+    PkgConfig::DRONE_SDK
+    PkgConfig::JSONCPP
+    pthread)
+target_compile_options(recovery_return PRIVATE -Wall -Wextra -Wpedantic)
+
 enable_testing()
 add_test(NAME flow_logic_test COMMAND flow_logic_test)
 add_test(NAME mission_sequence_test COMMAND mission_sequence_test)

@@ -1,0 +1,6 @@
+2026-08-05T07:43:32Z [startup] WARNING: --execute enabled; flight commands may run
+2026-08-05T07:43:33Z [sdk] getModeStatus(preflight) status=0
+2026-08-05T07:43:33Z [sdk] openFramePool(Front) status=0
+2026-08-05T07:43:33Z [sdk] openFramePool(PodVisibleLight) status=1006 error=streamUnavailable
+2026-08-05T07:43:33Z [startup] PodVisibleLight unavailable; answer layout captures will fail
+2026-08-05T07:43:33Z [startup] execute preflight failed: both cameras are required

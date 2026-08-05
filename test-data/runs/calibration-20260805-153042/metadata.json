@@ -1,0 +1,16 @@
+{
+  "run_id": "calibration-20260805-153042",
+  "captured_at": "2026-08-05T15:30:42+08:00",
+  "drone_host": "root@10.8.82.81",
+  "flight_simulation": true,
+  "preflight": "STANDBY, armed=false, altitude=0, no controller",
+  "camera": "PodVisibleLight",
+  "presets": [
+    "center",
+    "down",
+    "pitch-negative",
+    "pitch-positive"
+  ],
+  "selected_preset": "down",
+  "capture_count": 4
+}

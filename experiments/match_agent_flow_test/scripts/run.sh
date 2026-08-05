@@ -33,7 +33,7 @@ if ! flock -n 9; then
     exit 3
 fi
 
-controller_pattern='(^|[[:space:]])\./(match|match_recognize)([[:space:]]|$)|/opt/iking/match_agent/(match|match_recognize)|/opt/iking/match_agent_flow_test/build/(match_flow|gimbal_probe)'
+controller_pattern='(^|[[:space:]])\./(match|match_test|match_recognize)([[:space:]]|$)|/opt/iking/match_agent/(match|match_test|match_recognize)|/opt/iking/match_agent_flow_test/build/(match_flow|gimbal_probe|recovery_return)'
 if pgrep -af "$controller_pattern" >/dev/null; then
     echo "[launcher] another match controller is running; refusing to start" >&2
     pgrep -af "$controller_pattern" >&2 || true

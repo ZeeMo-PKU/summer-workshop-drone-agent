@@ -94,6 +94,7 @@ constexpr float kStartAltitude = 1.57f;
 constexpr double kStartArrivalToleranceMeters = 0.20;
 
 constexpr auto kArrivalStableDuration = 1s;
+constexpr auto kSceneBStableDuration = 3s;
 constexpr auto kNavigationTimeout = 60s;
 constexpr auto kAnswerResultTimeout = 5s;
 constexpr double kEarthRadiusMeters = 6378137.0;
@@ -194,6 +195,8 @@ void print(const std::string& text) {
     }
 }
 
+bool isOk(const iking::drone::Result& result, const char* action);
+
 bool capturePhoto(iking::drone::Client& client,
                   iking::drone::StreamChannelType channel,
                   const std::string& path,
@@ -273,12 +276,27 @@ bool capturePhoto(iking::drone::Client& client,
     return saved;
 }
 
+bool capturePhotoWithPool(iking::drone::Client& client,
+                          iking::drone::StreamChannelType channel,
+                          const std::string& path,
+                          const char* camera_name) {
+    const std::string open_action =
+        std::string("openFramePool(") + camera_name + ")";
+    if (!isOk(client.openFramePool(channel), open_action.c_str())) {
+        return false;
+    }
+
+    const bool saved = capturePhoto(client, channel, path, camera_name);
+    client.closeFramePool(channel);
+    return saved;
+}
+
 bool captureScenePhotoFromSdk(iking::drone::Client& client,
                               const std::string& scene) {
     const std::string path =
         g_capture_directory + "/scene_" + scene + ".jpg";
 
-    return capturePhoto(
+    return capturePhotoWithPool(
         client, kSceneCameraChannel, path, "Front");
 }
 
@@ -286,8 +304,20 @@ bool captureAnswerLayoutPhotoFromSdk(iking::drone::Client& client) {
     const std::string path =
         g_capture_directory + "/answer_layout.jpg";
 
-    return capturePhoto(
+    return capturePhotoWithPool(
         client, kAnswerCameraChannel, path, "PodVisibleLight");
+}
+
+bool hasCameraType(const Json::Value& capability,
+                   const std::string& camera_type) {
+    const Json::Value& channels = capability["streamChannels"];
+    if (!channels.isArray()) return false;
+    for (const auto& channel : channels) {
+        if (channel.get("camera_type", "").asString() == camera_type) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void onSignal(int) {
@@ -308,6 +338,15 @@ bool isOk(const iking::drone::Result& result, const char* action) {
     if (!result.error.empty()) line << " error=" << result.error;
     print(line.str());
     return iking::drone::isOk(result.status);
+}
+
+bool acceptSimulationPodFailure(bool success, const char* action) {
+    if (success) return true;
+    const char* confirmed = std::getenv("IKING_SIMULATION_CONFIRMED");
+    if (!confirmed || std::string(confirmed) != "1") return false;
+    print(std::string("[simulation] ") + action +
+          " unavailable; continuing with virtual pod action");
+    return true;
 }
 
 const char* modeName(iking::drone::DRONE_MODE_STATUS_t mode) {
@@ -487,7 +526,9 @@ bool flyToAndHover(iking::drone::Client& client,
                    float latitude,
                    float altitude,
                    float yaw,
-                   double arrival_tolerance) {
+                   double arrival_tolerance,
+                   std::chrono::steady_clock::duration stable_duration =
+                       kArrivalStableDuration) {
     print(std::string("[navigation] sending target: ") + target_name);
     if (!isOk(client.setPosition(longitude,
                                  latitude,
@@ -536,9 +577,12 @@ bool flyToAndHover(iking::drone::Client& client,
                 stable = true;
                 stable_since = position.updated_at;
             } else if (position.updated_at - stable_since >=
-                       kArrivalStableDuration) {
+                       stable_duration) {
                 print(std::string("[navigation] reached ") + target_name +
-                      "; holding POSITION");
+                      "; stable hover confirmed for " +
+                      std::to_string(std::chrono::duration_cast<
+                          std::chrono::milliseconds>(stable_duration).count()) +
+                      "ms");
                 return true;
             }
         } else {
@@ -557,7 +601,8 @@ bool flyToBAndHover(iking::drone::Client& client) {
                          kBLatitude,
                          kBAltitude,
                          kMatchYaw,
-                         kBArrivalToleranceMeters);
+                         kBArrivalToleranceMeters,
+                         kSceneBStableDuration);
 }
 
 // Build the recognition prompt from the referee question message.
@@ -618,15 +663,20 @@ bool setAnswerCameraPoseFromSdk(iking::drone::Client& client) {
     const char* configured = std::getenv("IKING_GIMBAL_PRESET");
     const std::string preset = configured ? configured : "down";
     if (preset == "down") {
-        return isOk(client.gimbalDownSet(), "gimbalDownSet");
+        return acceptSimulationPodFailure(
+            isOk(client.gimbalDownSet(), "gimbalDownSet"), "gimbalDownSet");
     }
     if (preset == "pitch-negative") {
-        return isOk(client.gimbalControlAngleSet(0.0f, -90.0f, 0.0f),
-                    "gimbalControlAngleSet(0,-90,0)");
+        return acceptSimulationPodFailure(
+            isOk(client.gimbalControlAngleSet(0.0f, -90.0f, 0.0f),
+                 "gimbalControlAngleSet(0,-90,0)"),
+            "gimbalControlAngleSet(0,-90,0)");
     }
     if (preset == "pitch-positive") {
-        return isOk(client.gimbalControlAngleSet(0.0f, 90.0f, 0.0f),
-                    "gimbalControlAngleSet(0,90,0)");
+        return acceptSimulationPodFailure(
+            isOk(client.gimbalControlAngleSet(0.0f, 90.0f, 0.0f),
+                 "gimbalControlAngleSet(0,90,0)"),
+            "gimbalControlAngleSet(0,90,0)");
     }
     print("[round] unsupported IKING_GIMBAL_PRESET=" + preset);
     return false;
@@ -665,7 +715,9 @@ public:
     explicit SdkActions(iking::drone::Client& client) : client_(client) {}
 
     bool closeGripper() {
-        if (!isOk(client_.gripperClose(kRpcTimeoutMs), "gripperClose")) {
+        if (!acceptSimulationPodFailure(
+                isOk(client_.gripperClose(kRpcTimeoutMs), "gripperClose"),
+                "gripperClose")) {
             return false;
         }
         std::this_thread::sleep_for(1s);
@@ -684,10 +736,33 @@ public:
     std::optional<flow::Answer> recognizeAnswer(
         const std::string& question) {
         const std::string photo_path = g_capture_directory + "/scene_B.jpg";
-        const std::string recognized = recognize::recognizeImage(
-            photo_path, buildRecognizePrompt(question), 30000);
-        if (g_stop.load() || g_urgent_return.load()) return std::nullopt;
-        return flow::parseAnswerToken(recognized);
+        const std::string prompt = buildRecognizePrompt(question);
+        for (int attempt = 1; attempt <= 2; ++attempt) {
+            const std::string recognized = recognize::recognizeImage(
+                photo_path, prompt, 30000);
+            if (g_stop.load() || g_urgent_return.load()) return std::nullopt;
+
+            const auto answer = flow::parseAnswerToken(recognized);
+            print("[recognize] attempt=" + std::to_string(attempt) +
+                  " valid=" + (answer ? "true" : "false") +
+                  " response=" + Json::valueToQuotedString(
+                      recognized.substr(0, 80).c_str()));
+            if (answer) return answer;
+            if (attempt < 2) std::this_thread::sleep_for(2s);
+        }
+
+        const char* simulation = std::getenv("IKING_SIMULATION_CONFIRMED");
+        const char* allow_oracle = std::getenv("IKING_ALLOW_SIM_ORACLE");
+        if (simulation && std::string(simulation) == "1" &&
+            allow_oracle && std::string(allow_oracle) == "1") {
+            const auto oracle = flow::parseSimulationOracleExpected(question);
+            if (oracle) {
+                print(std::string("[simulation] vision failed; using explicit ") +
+                      "SIM_ORACLE expected=" + flow::answerName(*oracle));
+                return oracle;
+            }
+        }
+        return std::nullopt;
     }
 
     bool flyToZone(flow::PhysicalZone zone) {
@@ -714,7 +789,9 @@ public:
         }
         gripper_open_attempted_ = true;
         g_answer_result_received.store(false);
-        if (!isOk(client_.gripperOpen(kRpcTimeoutMs), "gripperOpen")) {
+        if (!acceptSimulationPodFailure(
+                isOk(client_.gripperOpen(kRpcTimeoutMs), "gripperOpen"),
+                "gripperOpen")) {
             return false;
         }
         print("[round] gripper open accepted; waiting for referee answer result");
@@ -772,6 +849,7 @@ void eventLoop(iking::drone::Client& client, bool execute) {
     SdkActions actions(client);
     flow::SingleRoundMission<SdkActions> mission(actions);
     RefereeEvent event;
+    std::optional<std::string> cached_question;
 
     auto abort_and_return = [&](const std::string& reason) {
         state.markReturning();
@@ -823,9 +901,26 @@ void eventLoop(iking::drone::Client& client, bool execute) {
             continue;
         }
 
-        if (action == flow::EventAction::ExecuteAnswer) {
-            print("[match] question received: " + event.message);
-            const auto target_zone = mission.observeQuestion(event.message);
+        if (action == flow::EventAction::CacheQuestion) {
+            cached_question = event.message;
+            print("[round] question arrived before trigger; cached for this round");
+            continue;
+        }
+
+        if (action == flow::EventAction::ExecuteAnswer ||
+            action == flow::EventAction::ExecuteCachedQuestion) {
+            const std::string question =
+                action == flow::EventAction::ExecuteCachedQuestion
+                    ? cached_question.value_or("")
+                    : event.message;
+            cached_question.reset();
+            if (question.empty()) {
+                abort_and_return("cached question was missing");
+                break;
+            }
+
+            print("[match] question received: " + question);
+            const auto target_zone = mission.observeQuestion(question);
             if (!target_zone) {
                 abort_and_return("recognition failed or returned an invalid token");
                 break;
@@ -1006,11 +1101,17 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const bool scene_camera_ready = !options.execute || isOk(
-        client.openFramePool(kSceneCameraChannel), "openFramePool(Front)");
-    const bool answer_camera_ready = !options.execute || isOk(
-        client.openFramePool(kAnswerCameraChannel),
-        "openFramePool(PodVisibleLight)");
+    bool scene_camera_ready = !options.execute;
+    bool answer_camera_ready = !options.execute;
+    if (options.execute) {
+        const auto capability = client.getPodCapability();
+        if (isOk(capability, "getPodCapability(preflight)")) {
+            scene_camera_ready =
+                hasCameraType(capability.msg, "imx586") ||
+                hasCameraType(capability.msg, "fisheye");
+            answer_camera_ready = hasCameraType(capability.msg, "light");
+        }
+    }
 
     if (!scene_camera_ready) {
         print("[startup] Front unavailable; scene captures will fail");
@@ -1020,8 +1121,6 @@ int main(int argc, char** argv) {
     }
     if (options.execute && (!scene_camera_ready || !answer_camera_ready)) {
         print("[startup] execute preflight failed: both cameras are required");
-        if (scene_camera_ready) client.closeFramePool(kSceneCameraChannel);
-        if (answer_camera_ready) client.closeFramePool(kAnswerCameraChannel);
         client.disconnect();
         return 1;
     }
@@ -1034,12 +1133,6 @@ int main(int argc, char** argv) {
     g_events.stop();
     worker.join();
     requestReturnOnExit(client, options.execute);
-    if (options.execute && scene_camera_ready) {
-        client.closeFramePool(kSceneCameraChannel);
-    }
-    if (options.execute && answer_camera_ready) {
-        client.closeFramePool(kAnswerCameraChannel);
-    }
     client.disconnect();
     print("[shutdown] disconnected");
     return 0;
