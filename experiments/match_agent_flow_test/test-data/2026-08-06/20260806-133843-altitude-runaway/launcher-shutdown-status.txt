@@ -1,0 +1,8 @@
+Recorded at: 2026-08-06 14:11:17 +08:00
+Old controller: /opt/iking/match_agent/match
+Old launcher: dedicated VS Code terminal shell, PID 8011 on the server
+Action: launcher terminal terminated after the user authorized closing the resident program
+Reason: it repeatedly relaunched the old controller and created a two-controller conflict
+Last valid SDK state before connectivity loss: STANDBY, armed=false, altitude=0
+Current verification: unavailable; SSH 22 timed out and the monitor reported droneStatus.online=false
+Post-fix flight: not attempted

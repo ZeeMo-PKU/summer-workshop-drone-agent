@@ -91,6 +91,11 @@ constexpr float kAnswerCLongitude = 119.71366882324219f;
 constexpr float kAnswerCLatitude = 39.077195093326317f;
 constexpr float kAnswerCAltitude = 1.57f;
 
+constexpr float kStartLongitude = 119.71366882324219f;
+constexpr float kStartLatitude = 39.07721710205078f;
+constexpr float kStartAltitude = 1.57f;
+constexpr double kStartArrivalToleranceMeters = 0.20;
+
 constexpr auto kArrivalStableDuration = 1s;
 constexpr auto kSceneStableDuration = 3s;
 constexpr auto kNavigationTimeout = 60s;
@@ -100,6 +105,8 @@ constexpr auto kGroundTelemetryWait = 5s;
 constexpr double kEarthRadiusMeters = 6378137.0;
 constexpr double kAltitudeToleranceMeters = 0.20;
 constexpr double kGroundAltitudeToleranceMeters = 0.10;
+constexpr double kMinimumMissionAltitudeMeters = -0.10;
+constexpr double kMaximumMissionAltitudeMeters = 2.50;
 
 struct RefereeEvent {
     std::string request_id;
@@ -635,6 +642,20 @@ bool flyToAndHover(iking::drone::Client& client,
         const double altitude_error =
             std::abs(position.altitude - static_cast<double>(altitude));
 
+        if (!flow::isAltitudeWithinEnvelope(
+                position.altitude,
+                kMinimumMissionAltitudeMeters,
+                kMaximumMissionAltitudeMeters)) {
+            print(std::string("[safety] altitude envelope violated while "
+                              "navigating to ") + target_name +
+                  ": altitude=" + std::to_string(position.altitude) +
+                  "m allowed=[" +
+                  std::to_string(kMinimumMissionAltitudeMeters) + "," +
+                  std::to_string(kMaximumMissionAltitudeMeters) + "]m");
+            g_urgent_return.store(true);
+            return false;
+        }
+
         if (last_log.time_since_epoch().count() == 0 ||
             position.updated_at - last_log >= 1s) {
             print(std::string("[navigation] target=") + target_name +
@@ -1006,6 +1027,17 @@ public:
         return !g_stop.load() && !g_urgent_return.load();
     }
 
+    bool returnToStart() {
+        print("[round] returning to the start zone before landing");
+        return flyToAndHover(client_,
+                             "start",
+                             kStartLongitude,
+                             kStartLatitude,
+                             kStartAltitude,
+                             kMatchYaw,
+                             kStartArrivalToleranceMeters);
+    }
+
     bool returnHome(const std::string& reason) {
         return returnHomeWithSdk(client_, reason);
     }
@@ -1058,8 +1090,9 @@ void eventLoop(iking::drone::Client& client, bool execute) {
         const bool landed = mission.emergencyReturn(reason);
         cached_question.reset();
         if (landed) {
-            state.markReady();
-            print("[resident] current match aborted; waiting for MATCH_STARTED");
+            state.markFaulted();
+            print("[resident] current match faulted; repeated start events are "
+                  "locked out until MATCH_FINISHED or process restart");
         } else {
             print("[abort] return-to-home was not confirmed; process stopping");
             g_stop.store(true);

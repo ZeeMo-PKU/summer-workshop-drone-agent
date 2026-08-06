@@ -60,6 +60,7 @@ struct FakeActions {
         ++open_count;
         return call("gripperOpen");
     }
+    bool returnToStart() { return call("setPosition(start)"); }
     bool returnHome(const std::string&) { return call("returnToHome"); }
 };
 
@@ -86,7 +87,8 @@ int main() {
         "beginRound(1,B)", "gripperClose", "takeOff", "setPosition(scene-B)",
         "capture(scene-B)", "recognize", "setPosition(physical zone 2)",
         "gimbalDown", "capture(answer-layout)", "recognize-layout",
-        "gripperClose(drop)", "gripperOpen", "returnToHome"});
+        "gripperClose(drop)", "gripperOpen", "setPosition(start)",
+        "returnToHome"});
 
     normal.commands.clear();
     assert(mission.start(2, flow::SceneZone::A));
@@ -160,6 +162,18 @@ int main() {
     assert(!gripper_restore_mission.deliverAndLand(
         *answer_before_restore_failure));
     assert(gripper_restore_failure.open_count == 0);
+
+    FakeActions return_to_start_failure;
+    return_to_start_failure.fail_at = "setPosition(start)";
+    flow::RoundMission<FakeActions> return_to_start_mission(
+        return_to_start_failure);
+    assert(return_to_start_mission.start(1, flow::SceneZone::B));
+    const auto answer_before_return_failure =
+        return_to_start_mission.observeQuestion("question");
+    assert(answer_before_return_failure);
+    assert(!return_to_start_mission.deliverAndLand(
+        *answer_before_return_failure));
+    assert(return_to_start_failure.commands.back() == "setPosition(start)");
 
     return 0;
 }

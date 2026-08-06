@@ -1,0 +1,9 @@
+Server boot time: 2026-08-06 13:43:41 +0800
+SDK flight path: STANDBY
+SDK armed: false
+SDK mode: true
+SDK altitude: 0
+Control processes: none
+Tegra PMC reset source: SYS_RESET_N
+pstore entries: none
+Prior-boot panic/OOM evidence: not found

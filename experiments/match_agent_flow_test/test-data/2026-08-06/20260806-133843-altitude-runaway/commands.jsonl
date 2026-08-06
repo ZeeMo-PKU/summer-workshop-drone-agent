@@ -1,0 +1,14 @@
+{"action":"getModeStatus(preflight)","ok":true,"recorded_at":"2026-08-06T05:38:47Z","status":0}
+{"action":"getPodCapability(preflight)","ok":true,"recorded_at":"2026-08-06T05:38:47Z","status":0}
+{"action":"getModeStatus(round-preflight)","ok":true,"recorded_at":"2026-08-06T05:39:29Z","status":0}
+{"action":"getPodCapability(round-preflight)","ok":true,"recorded_at":"2026-08-06T05:39:31Z","status":0}
+{"action":"gripperClose","ok":true,"recorded_at":"2026-08-06T05:39:33Z","status":0}
+{"action":"getModeStatus","ok":true,"recorded_at":"2026-08-06T05:39:34Z","status":0}
+{"action":"returnToHome","ok":true,"recorded_at":"2026-08-06T05:39:49Z","status":0}
+{"action":"returnToHome","ok":true,"recorded_at":"2026-08-06T05:40:47Z","status":0}
+{"action":"getModeStatus(round-preflight)","ok":true,"recorded_at":"2026-08-06T05:41:23Z","status":0}
+{"action":"getPodCapability(round-preflight)","ok":true,"recorded_at":"2026-08-06T05:41:23Z","status":0}
+{"action":"gripperClose","ok":true,"recorded_at":"2026-08-06T05:41:25Z","status":0}
+{"action":"getModeStatus","ok":true,"recorded_at":"2026-08-06T05:41:26Z","status":0}
+{"action":"takeOff(1.57m)","ok":true,"recorded_at":"2026-08-06T05:41:26Z","status":0}
+{"action":"setPosition","ok":true,"recorded_at":"2026-08-06T05:41:42Z","status":0}

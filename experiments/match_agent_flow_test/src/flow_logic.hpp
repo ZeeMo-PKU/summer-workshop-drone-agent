@@ -58,6 +58,13 @@ inline bool isGroundReady(const GroundTelemetryCheck& telemetry,
            std::abs(telemetry.altitude) <= altitude_tolerance;
 }
 
+inline bool isAltitudeWithinEnvelope(double altitude,
+                                     double minimum,
+                                     double maximum) {
+    return std::isfinite(altitude) && altitude >= minimum &&
+           altitude <= maximum;
+}
+
 inline ReturnAction returnActionForMode(ReturnMode mode) {
     switch (mode) {
         case ReturnMode::Standby: return ReturnAction::Complete;
@@ -249,6 +256,7 @@ enum class Phase {
     ExecutingAnswer,
     Returning,
     RoundCompleted,
+    Faulted,
 };
 
 enum class EventKind {
@@ -278,7 +286,8 @@ public:
         if (event == EventKind::MatchFinished ||
             event == EventKind::SafetyLineViolation) {
             const bool airborne = phase_ != Phase::Ready &&
-                                  phase_ != Phase::RoundCompleted;
+                                  phase_ != Phase::RoundCompleted &&
+                                  phase_ != Phase::Faulted;
             match_active_ = false;
             question_pending_ = false;
             if (!airborne) {
@@ -353,6 +362,11 @@ public:
     void markRoundCompleted() {
         question_pending_ = false;
         phase_ = Phase::RoundCompleted;
+    }
+    void markFaulted() {
+        question_pending_ = false;
+        match_active_ = false;
+        phase_ = Phase::Faulted;
     }
     void markReady() {
         question_pending_ = false;

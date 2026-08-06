@@ -39,6 +39,7 @@ public:
             return false;
         }
         if (!actions_.openGripperOnce()) return false;
+        if (!actions_.returnToStart()) return false;
         return actions_.returnHome("round completed");
     }
 

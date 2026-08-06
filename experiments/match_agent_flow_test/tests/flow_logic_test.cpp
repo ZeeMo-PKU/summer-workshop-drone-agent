@@ -82,6 +82,13 @@ int main() {
     unsafe_ground.altitude = std::numeric_limits<double>::quiet_NaN();
     assert(!isGroundReady(unsafe_ground, 0.10));
 
+    assert(isAltitudeWithinEnvelope(1.57, -0.10, 2.50));
+    assert(isAltitudeWithinEnvelope(2.50, -0.10, 2.50));
+    assert(!isAltitudeWithinEnvelope(2.51, -0.10, 2.50));
+    assert(!isAltitudeWithinEnvelope(-0.11, -0.10, 2.50));
+    assert(!isAltitudeWithinEnvelope(
+        std::numeric_limits<double>::quiet_NaN(), -0.10, 2.50));
+
     ResidentMatchStateMachine state;
     assert(state.phase() == Phase::Ready);
     assert(state.handle(EventKind::NextRoundStarted) == EventAction::Ignore);
@@ -144,8 +151,10 @@ int main() {
     assert(emergency.handle(EventKind::MatchStarted) == EventAction::StartRound);
     assert(emergency.handle(EventKind::SafetyLineViolation) ==
            EventAction::EmergencyReturn);
-    emergency.markReady();
+    emergency.markFaulted();
     assert(emergency.handle(EventKind::NextRoundStarted) == EventAction::Ignore);
+    assert(emergency.handle(EventKind::MatchStarted) == EventAction::Ignore);
+    assert(emergency.handle(EventKind::MatchFinished) == EventAction::EndMatch);
     assert(emergency.handle(EventKind::MatchStarted) == EventAction::StartRound);
 
     std::cout << "flow_logic_test: PASS\n";
