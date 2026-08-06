@@ -1,0 +1,13 @@
+{
+  "phase": "preparing",
+  "running": false,
+  "drone_connection_state": "connected",
+  "position": {
+    "x": 1.596477274668203e-8,
+    "y": 1,
+    "z": -2.3729176659502166e-9
+  },
+  "control_state": 0,
+  "can_start_match": true,
+  "start_blocked_reason": null
+}

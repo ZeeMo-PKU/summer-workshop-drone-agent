@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <limits>
 
 #include "flow_logic.hpp"
 
@@ -56,6 +57,30 @@ int main() {
            ReturnAction::SendCommand);
     assert(returnActionForMode(ReturnMode::Mission) ==
            ReturnAction::SendCommand);
+
+    const GroundTelemetryCheck ground_ready{
+        true, true, true, false, true, 0.04};
+    assert(isGroundReady(ground_ready, 0.10));
+    auto unsafe_ground = ground_ready;
+    unsafe_ground.valid = false;
+    assert(!isGroundReady(unsafe_ground, 0.10));
+    unsafe_ground = ground_ready;
+    unsafe_ground.fresh = false;
+    assert(!isGroundReady(unsafe_ground, 0.10));
+    unsafe_ground = ground_ready;
+    unsafe_ground.flight_state_valid = false;
+    assert(!isGroundReady(unsafe_ground, 0.10));
+    unsafe_ground = ground_ready;
+    unsafe_ground.armed = true;
+    assert(!isGroundReady(unsafe_ground, 0.10));
+    unsafe_ground = ground_ready;
+    unsafe_ground.sdk_mode = false;
+    assert(!isGroundReady(unsafe_ground, 0.10));
+    unsafe_ground = ground_ready;
+    unsafe_ground.altitude = 0.11;
+    assert(!isGroundReady(unsafe_ground, 0.10));
+    unsafe_ground.altitude = std::numeric_limits<double>::quiet_NaN();
+    assert(!isGroundReady(unsafe_ground, 0.10));
 
     ResidentMatchStateMachine state;
     assert(state.phase() == Phase::Ready);

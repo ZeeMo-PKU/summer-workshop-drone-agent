@@ -1,0 +1,17 @@
+{
+  "queried_at": "2026-08-06 12:06:22 +0800",
+  "source": "sdk-fallback",
+  "flight_path": "STANDBY",
+  "flight_mode": "FLY_MODE_POSITION",
+  "armed": false,
+  "sdk_mode": true,
+  "position": {
+    "latitude": 39.07721710205078,
+    "longitude": 119.71366882324219,
+    "altitude": 0,
+    "relative_dock_altitude": 0
+  },
+  "control_processes": [
+    "44459 ./match"
+  ]
+}

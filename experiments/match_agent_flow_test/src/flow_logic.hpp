@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <optional>
 #include <string>
 
@@ -39,6 +40,23 @@ enum class ReturnAction {
     Wait,
     SendCommand,
 };
+
+struct GroundTelemetryCheck {
+    bool valid = false;
+    bool fresh = false;
+    bool flight_state_valid = false;
+    bool armed = true;
+    bool sdk_mode = false;
+    double altitude = 0.0;
+};
+
+inline bool isGroundReady(const GroundTelemetryCheck& telemetry,
+                          double altitude_tolerance) {
+    return telemetry.valid && telemetry.fresh &&
+           telemetry.flight_state_valid && !telemetry.armed &&
+           telemetry.sdk_mode && std::isfinite(telemetry.altitude) &&
+           std::abs(telemetry.altitude) <= altitude_tolerance;
+}
 
 inline ReturnAction returnActionForMode(ReturnMode mode) {
     switch (mode) {

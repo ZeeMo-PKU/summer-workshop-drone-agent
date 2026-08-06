@@ -95,8 +95,11 @@ constexpr auto kArrivalStableDuration = 1s;
 constexpr auto kSceneStableDuration = 3s;
 constexpr auto kNavigationTimeout = 60s;
 constexpr auto kAnswerResultTimeout = 5s;
+constexpr auto kTelemetryFreshnessLimit = 3s;
+constexpr auto kGroundTelemetryWait = 5s;
 constexpr double kEarthRadiusMeters = 6378137.0;
 constexpr double kAltitudeToleranceMeters = 0.20;
+constexpr double kGroundAltitudeToleranceMeters = 0.10;
 
 struct RefereeEvent {
     std::string request_id;
@@ -108,6 +111,10 @@ struct PositionSnapshot {
     double latitude = 0.0;
     double longitude = 0.0;
     double altitude = 0.0;
+    bool armed = true;
+    bool sdk_mode = false;
+    bool flight_state_valid = false;
+    std::string flight_path;
     std::chrono::steady_clock::time_point updated_at{};
 };
 
@@ -423,8 +430,9 @@ void onStatus(const std::string& json, void*) {
     Json::Reader reader;
     if (!reader.parse(json, root, false)) return;
 
-    const Json::Value& position =
-        root["status"]["data"]["flight"]["positionStatus"];
+    const Json::Value& data = root["status"]["data"];
+    const Json::Value& flight = data["flight"];
+    const Json::Value& position = flight["positionStatus"];
     if (!position.isObject() ||
         !position["latitude"].isNumeric() ||
         !position["longitude"].isNumeric() ||
@@ -436,6 +444,13 @@ void onStatus(const std::string& json, void*) {
     snapshot.latitude = position["latitude"].asDouble();
     snapshot.longitude = position["longitude"].asDouble();
     snapshot.altitude = position["altitude"].asDouble();
+    snapshot.flight_state_valid = flight["isArmed"].isBool() &&
+                                  flight["sdkMode"].isBool();
+    if (snapshot.flight_state_valid) {
+        snapshot.armed = flight["isArmed"].asBool();
+        snapshot.sdk_mode = flight["sdkMode"].asBool();
+    }
+    snapshot.flight_path = data.get("flightPath", "").asString();
     snapshot.updated_at = std::chrono::steady_clock::now();
 
     if (!std::isfinite(snapshot.latitude) ||
@@ -452,6 +467,10 @@ void onStatus(const std::string& json, void*) {
     record["latitude"] = snapshot.latitude;
     record["longitude"] = snapshot.longitude;
     record["altitude"] = snapshot.altitude;
+    record["armed"] = snapshot.armed;
+    record["sdk_mode"] = snapshot.sdk_mode;
+    record["flight_state_valid"] = snapshot.flight_state_valid;
+    record["flight_path"] = snapshot.flight_path;
     appendJsonLine(g_telemetry_log, record);
 }
 
@@ -460,6 +479,49 @@ bool latestPosition(PositionSnapshot& output) {
     if (!g_telemetry.valid) return false;
     output = g_telemetry.position;
     return true;
+}
+
+flow::GroundTelemetryCheck groundTelemetryCheck(
+    const PositionSnapshot& snapshot,
+    bool valid,
+    std::chrono::steady_clock::time_point now) {
+    return flow::GroundTelemetryCheck{
+        valid,
+        valid && now - snapshot.updated_at <= kTelemetryFreshnessLimit,
+        snapshot.flight_state_valid,
+        snapshot.armed,
+        snapshot.sdk_mode,
+        snapshot.altitude,
+    };
+}
+
+bool waitForGroundTelemetry(const char* context) {
+    const auto deadline = std::chrono::steady_clock::now() +
+                          kGroundTelemetryWait;
+    PositionSnapshot latest;
+    bool valid = false;
+    while (std::chrono::steady_clock::now() < deadline) {
+        valid = latestPosition(latest);
+        const auto check = groundTelemetryCheck(
+            latest, valid, std::chrono::steady_clock::now());
+        if (flow::isGroundReady(check, kGroundAltitudeToleranceMeters)) {
+            return true;
+        }
+        std::this_thread::sleep_for(100ms);
+    }
+
+    const auto check = groundTelemetryCheck(
+        latest, valid, std::chrono::steady_clock::now());
+    print(std::string("[") + context +
+          "] ground telemetry check failed: valid=" +
+          (check.valid ? "true" : "false") + " fresh=" +
+          (check.fresh ? "true" : "false") + " state_valid=" +
+          (check.flight_state_valid ? "true" : "false") + " armed=" +
+          (check.armed ? "true" : "false") + " sdk_mode=" +
+          (check.sdk_mode ? "true" : "false") + " altitude=" +
+          std::to_string(check.altitude) + " flight_path=" +
+          latest.flight_path);
+    return false;
 }
 
 double degreesToRadians(double value) {
@@ -706,6 +768,7 @@ bool returnHomeWithSdk(iking::drone::Client& client,
     int failed_return_commands = 0;
     int previous_mode = -1;
     bool reported_takeoff_wait = false;
+    bool reported_unconfirmed_ground = false;
 
     while (std::chrono::steady_clock::now() < deadline) {
         iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
@@ -728,9 +791,21 @@ bool returnHomeWithSdk(iking::drone::Client& client,
         const flow::ReturnAction action =
             flow::returnActionForMode(returnModeFromSdk(mode));
         if (action == flow::ReturnAction::Complete) {
-            g_urgent_return.store(false);
-            print("[return] landing confirmed");
-            return true;
+            PositionSnapshot latest;
+            const bool valid = latestPosition(latest);
+            const auto check = groundTelemetryCheck(
+                latest, valid, std::chrono::steady_clock::now());
+            if (flow::isGroundReady(check,
+                                    kGroundAltitudeToleranceMeters)) {
+                g_urgent_return.store(false);
+                print("[return] landing confirmed by mode and telemetry");
+                return true;
+            }
+            if (!reported_unconfirmed_ground) {
+                print("[return] STANDBY reported but ground telemetry is not "
+                      "yet confirmed");
+                reported_unconfirmed_ground = true;
+            }
         }
 
         if (mode == iking::drone::TAKEOFF && !reported_takeoff_wait) {
@@ -786,6 +861,11 @@ public:
                   "getModeStatus(round-preflight)") ||
             mode != iking::drone::STANDBY) {
             print("[round] preflight requires STANDBY");
+            return false;
+        }
+        if (!waitForGroundTelemetry("round-preflight")) {
+            print("[round] preflight requires fresh telemetry, armed=false, "
+                  "sdk_mode=true, and altitude<=0.10m");
             return false;
         }
 
@@ -1276,6 +1356,11 @@ int main(int argc, char** argv) {
         (!isOk(client.getModeStatus(initial_mode, 2000), "getModeStatus(preflight)") ||
          initial_mode != iking::drone::STANDBY)) {
         print("[startup] execute preflight requires STANDBY");
+        client.disconnect();
+        return 1;
+    }
+    if (options.execute && !waitForGroundTelemetry("startup")) {
+        print("[startup] execute preflight requires fresh ground telemetry");
         client.disconnect();
         return 1;
     }
