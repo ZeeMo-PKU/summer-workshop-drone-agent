@@ -172,6 +172,7 @@ private:
 
 std::atomic<bool> g_stop{false};
 std::atomic<bool> g_urgent_return{false};
+std::atomic<bool> g_flight_commanded_by_process{false};
 std::atomic<AnswerResult> g_answer_result{AnswerResult::Pending};
 std::mutex g_print_mutex;
 std::mutex g_artifact_mutex;
@@ -592,6 +593,7 @@ bool takeOffAfterGripperClosed(iking::drone::Client& client) {
     if (!isOk(client.takeOff(kTakeoffHeight, kRpcTimeoutMs), "takeOff(1.57m)")) {
         return false;
     }
+    g_flight_commanded_by_process.store(true);
 
     print("[match] takeoff accepted; waiting for POSITION");
     const bool reached = waitForMode(client, iking::drone::POSITION, 90s, true);
@@ -781,10 +783,28 @@ bool returnHomeWithSdk(iking::drone::Client& client,
                        const std::string& reason) {
     print("[return] reason=" + reason);
 
+    if (!g_flight_commanded_by_process.load()) {
+        iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
+        const auto result = client.getModeStatus(mode, 2000);
+        const bool ground_ready = iking::drone::isOk(result.status) &&
+                                  mode == iking::drone::STANDBY &&
+                                  waitForGroundTelemetry("return-unowned");
+        const auto decision = flow::recoveryDecision(false, ground_ready);
+        if (decision == flow::RecoveryDecision::AlreadyGrounded) {
+            print("[return] no owned flight; aircraft is already grounded");
+            return true;
+        }
+        print("[return] refusing to command an airborne aircraft because this "
+              "process did not issue its takeoff");
+        return false;
+    }
+
     constexpr auto kReturnTimeout = 180s;
     constexpr auto kReturnRetryDelay = 10s;
     const auto deadline = std::chrono::steady_clock::now() + kReturnTimeout;
     auto next_return_command = std::chrono::steady_clock::time_point{};
+    auto landing_started_at = std::chrono::steady_clock::time_point{};
+    auto last_return_command = std::chrono::steady_clock::time_point{};
     int failed_mode_queries = 0;
     int failed_return_commands = 0;
     int previous_mode = -1;
@@ -807,6 +827,9 @@ bool returnHomeWithSdk(iking::drone::Client& client,
         if (static_cast<int>(mode) != previous_mode) {
             print(std::string("[return] mode=") + modeName(mode));
             previous_mode = static_cast<int>(mode);
+            if (mode == iking::drone::LANDING) {
+                landing_started_at = std::chrono::steady_clock::now();
+            }
         }
 
         const flow::ReturnAction action =
@@ -819,6 +842,7 @@ bool returnHomeWithSdk(iking::drone::Client& client,
             if (flow::isGroundReady(check,
                                     kGroundAltitudeToleranceMeters)) {
                 g_urgent_return.store(false);
+                g_flight_commanded_by_process.store(false);
                 print("[return] landing confirmed by mode and telemetry");
                 return true;
             }
@@ -835,16 +859,33 @@ bool returnHomeWithSdk(iking::drone::Client& client,
         }
 
         const auto now = std::chrono::steady_clock::now();
-        if (action == flow::ReturnAction::SendCommand &&
-            now >= next_return_command) {
-            if (!isOk(client.returnToHome(kRpcTimeoutMs), "returnToHome")) {
+        const bool landing_recovery_due =
+            mode == iking::drone::LANDING &&
+            landing_started_at.time_since_epoch().count() != 0 &&
+            flow::shouldRecoverStalledLanding(
+                last_return_command.time_since_epoch().count() != 0,
+                std::chrono::duration<double>(now - landing_started_at).count(),
+                last_return_command.time_since_epoch().count() == 0
+                    ? 0.0
+                    : std::chrono::duration<double>(
+                          now - last_return_command).count());
+        if ((action == flow::ReturnAction::SendCommand &&
+             now >= next_return_command) ||
+            landing_recovery_due) {
+            if (!isOk(client.returnToAnyPosition(kStartLongitude,
+                                                 kStartLatitude,
+                                                 kStartAltitude,
+                                                 kMatchYaw,
+                                                 kRpcTimeoutMs),
+                      "returnToAnyPosition(start,1.57m)")) {
                 if (++failed_return_commands >= 3) {
-                    print("[return] returnToHome failed three times");
+                    print("[return] targeted return failed three times");
                     return false;
                 }
             } else {
                 failed_return_commands = 0;
             }
+            last_return_command = now;
             next_return_command = now + kReturnRetryDelay;
         }
 
@@ -1213,6 +1254,12 @@ void eventLoop(iking::drone::Client& client, bool execute) {
 
 void requestReturnOnExit(iking::drone::Client& client, bool execute) {
     if (!execute) return;
+
+    if (!g_flight_commanded_by_process.load()) {
+        print("[shutdown] no flight was commanded by this process; return "
+              "command suppressed");
+        return;
+    }
 
     iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
     const auto result = client.getModeStatus(mode, 2000);

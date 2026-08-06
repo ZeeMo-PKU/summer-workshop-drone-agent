@@ -11,6 +11,11 @@ using namespace std::chrono_literals;
 
 namespace {
 
+constexpr float kStartLongitude = 119.71366882324219f;
+constexpr float kStartLatitude = 39.07721710205078f;
+constexpr float kReturnAltitude = 1.57f;
+constexpr float kReturnYaw = -90.0f;
+
 bool ok(const iking::drone::Result& result, const char* action) {
     std::cout << "[recovery] " << action
               << " status=" << static_cast<int>(result.status);
@@ -60,6 +65,8 @@ int main() {
 
     const auto deadline = std::chrono::steady_clock::now() + 180s;
     auto next_return_command = std::chrono::steady_clock::time_point{};
+    auto landing_started_at = std::chrono::steady_clock::time_point{};
+    auto last_return_command = std::chrono::steady_clock::time_point{};
     int failed_mode_queries = 0;
     int failed_return_commands = 0;
     int previous_mode = -1;
@@ -80,6 +87,9 @@ int main() {
         if (static_cast<int>(mode) != previous_mode) {
             std::cout << "[recovery] mode=" << modeName(mode) << '\n';
             previous_mode = static_cast<int>(mode);
+            if (mode == iking::drone::LANDING) {
+                landing_started_at = std::chrono::steady_clock::now();
+            }
         }
 
         const flow::ReturnAction action =
@@ -91,13 +101,30 @@ int main() {
         }
 
         const auto now = std::chrono::steady_clock::now();
-        if (action == flow::ReturnAction::SendCommand &&
-            now >= next_return_command) {
-            if (!ok(client.returnToHome(5000), "returnToHome")) {
+        const bool landing_recovery_due =
+            mode == iking::drone::LANDING &&
+            landing_started_at.time_since_epoch().count() != 0 &&
+            flow::shouldRecoverStalledLanding(
+                last_return_command.time_since_epoch().count() != 0,
+                std::chrono::duration<double>(now - landing_started_at).count(),
+                last_return_command.time_since_epoch().count() == 0
+                    ? 0.0
+                    : std::chrono::duration<double>(
+                          now - last_return_command).count());
+        if ((action == flow::ReturnAction::SendCommand &&
+             now >= next_return_command) ||
+            landing_recovery_due) {
+            if (!ok(client.returnToAnyPosition(kStartLongitude,
+                                               kStartLatitude,
+                                               kReturnAltitude,
+                                               kReturnYaw,
+                                               5000),
+                    "returnToAnyPosition(start,1.57m)")) {
                 if (++failed_return_commands >= 3) break;
             } else {
                 failed_return_commands = 0;
             }
+            last_return_command = now;
             next_return_command = now + 10s;
         }
 

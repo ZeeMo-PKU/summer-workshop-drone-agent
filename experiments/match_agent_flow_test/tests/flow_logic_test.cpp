@@ -57,6 +57,19 @@ int main() {
            ReturnAction::SendCommand);
     assert(returnActionForMode(ReturnMode::Mission) ==
            ReturnAction::SendCommand);
+    assert(recoveryDecision(true, false) ==
+           RecoveryDecision::SendReturnCommand);
+    assert(recoveryDecision(true, true) ==
+           RecoveryDecision::SendReturnCommand);
+    assert(recoveryDecision(false, true) ==
+           RecoveryDecision::AlreadyGrounded);
+    assert(recoveryDecision(false, false) ==
+           RecoveryDecision::RefuseUnownedFlight);
+    assert(!shouldRecoverStalledLanding(false, 14.9, 0.0));
+    assert(shouldRecoverStalledLanding(false, 15.0, 0.0));
+    assert(!shouldRecoverStalledLanding(true, 120.0, 59.9));
+    assert(shouldRecoverStalledLanding(true, 120.0, 60.0));
+    assert(!shouldRecoverStalledLanding(false, -1.0, 0.0));
 
     const GroundTelemetryCheck ground_ready{
         true, true, true, false, true, 0.04};

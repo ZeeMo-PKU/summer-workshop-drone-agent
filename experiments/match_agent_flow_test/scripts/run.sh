@@ -33,10 +33,26 @@ if ! flock -n 9; then
     exit 3
 fi
 
-controller_pattern='(^|[[:space:]])\./(match|match_test|match_recognize)([[:space:]]|$)|/opt/iking/match_agent/(match|match_test|match_recognize)|/opt/iking/match_agent_flow_test/build/(match_flow|gimbal_probe|recovery_return)'
-if pgrep -af "$controller_pattern" >/dev/null; then
+controller_processes() {
+    local process_dir pid executable
+    for process_dir in /proc/[0-9]*; do
+        pid="${process_dir##*/}"
+        executable="$(readlink -f "$process_dir/exe" 2>/dev/null || true)"
+        case "$executable" in
+            /opt/iking/match|/opt/iking/match.*|\
+            /opt/iking/match_agent/match|/opt/iking/match_agent/match_*|\
+            /opt/iking/match_agent_flow_test/build/match_flow|\
+            /opt/iking/match_agent_flow_test/build/gimbal_probe|\
+            /opt/iking/match_agent_flow_test/build/recovery_return)
+                printf '%s %s\n' "$pid" "$executable"
+                ;;
+        esac
+    done
+}
+
+if [[ -n "$(controller_processes)" ]]; then
     echo "[launcher] another match controller is running; refusing to start" >&2
-    pgrep -af "$controller_pattern" >&2 || true
+    controller_processes >&2
     exit 4
 fi
 
@@ -110,7 +126,20 @@ raise SystemExit(0 if ok else 1)
 fi
 
 child_pid=""
+watchdog_pid=""
+conflict_file="${lock_file}.conflict.$$"
+rm -f "$conflict_file"
+
+stop_watchdog() {
+    if [[ -n "$watchdog_pid" ]]; then
+        kill "$watchdog_pid" 2>/dev/null || true
+        wait "$watchdog_pid" 2>/dev/null || true
+        watchdog_pid=""
+    fi
+}
+
 forward_signal() {
+    stop_watchdog
     if [[ -n "$child_pid" ]]; then
         kill -TERM "$child_pid" 2>/dev/null || true
     fi
@@ -120,12 +149,33 @@ trap forward_signal INT TERM
 set +e
 "$binary" "--$mode" --run-id "$run_id" &
 child_pid=$!
+
+(
+    while kill -0 "$child_pid" 2>/dev/null; do
+        competitors="$(controller_processes | awk -v own="$child_pid" '$1 != own')"
+        if [[ -n "$competitors" ]]; then
+            echo "[launcher] competing controller appeared; stopping isolated flow" >&2
+            printf '%s\n' "$competitors" >&2
+            printf '%s\n' "$competitors" > "$conflict_file"
+            kill -TERM "$child_pid" 2>/dev/null || true
+            exit 0
+        fi
+        sleep 1
+    done
+) &
+watchdog_pid=$!
+
 wait "$child_pid"
 result=$?
 if kill -0 "$child_pid" 2>/dev/null; then
     wait "$child_pid"
     result=$?
 fi
+stop_watchdog
+if [[ -s "$conflict_file" ]]; then
+    result=11
+fi
+rm -f "$conflict_file"
 set -e
 trap - INT TERM
 

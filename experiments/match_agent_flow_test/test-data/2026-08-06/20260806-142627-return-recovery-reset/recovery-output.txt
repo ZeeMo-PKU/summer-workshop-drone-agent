@@ -1,0 +1,13 @@
+[recovery] mode=POSITION
+[recovery] returnToAnyPosition(start,1.57m) status=0
+[recovery] mode=LANDING
+[recovery] returnToAnyPosition(start,1.57m) status=0
+[recovery] returnToAnyPosition(start,1.57m) status=0
+[recovery] returnToAnyPosition(start,1.57m) status=0
+[recovery] returnToAnyPosition(start,1.57m) status=0
+[recovery] mode=STANDBY
+[recovery] landing confirmed
+
+Observed elapsed time: approximately 48 seconds
+Observed peak altitude: approximately 2.38 m
+Interpretation: targeted return worked, but the pre-rate-limit recovery sent too many commands.

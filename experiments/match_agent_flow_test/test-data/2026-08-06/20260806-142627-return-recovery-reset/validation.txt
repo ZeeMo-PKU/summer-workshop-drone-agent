@@ -1,0 +1,20 @@
+Server validation before the final command-rate-limit patch:
+- match_flow linked successfully
+- recovery_return linked successfully
+- flow_logic_test passed
+- mission_sequence_test passed
+- qwen_vision_test passed
+- CTest: 3/3 passed
+
+Final source validation:
+- WSL flow_logic_test passed
+- WSL mission_sequence_test passed
+- WSL qwen_vision_test passed
+- scripts/run.sh passed bash -n
+- git diff --check passed
+
+Final server validation:
+- final source synchronized to /opt/iking/match_agent_flow_test
+- server reset during rebuild at approximately 14:58 +08:00
+- final ARM64 binary hash and CTest result are unavailable
+- no post-fix flight acceptance was attempted

@@ -41,6 +41,12 @@ enum class ReturnAction {
     SendCommand,
 };
 
+enum class RecoveryDecision {
+    AlreadyGrounded,
+    SendReturnCommand,
+    RefuseUnownedFlight,
+};
+
 struct GroundTelemetryCheck {
     bool valid = false;
     bool fresh = false;
@@ -63,6 +69,25 @@ inline bool isAltitudeWithinEnvelope(double altitude,
                                      double maximum) {
     return std::isfinite(altitude) && altitude >= minimum &&
            altitude <= maximum;
+}
+
+inline RecoveryDecision recoveryDecision(bool flight_commanded_by_process,
+                                          bool ground_ready) {
+    if (flight_commanded_by_process) {
+        return RecoveryDecision::SendReturnCommand;
+    }
+    return ground_ready ? RecoveryDecision::AlreadyGrounded
+                        : RecoveryDecision::RefuseUnownedFlight;
+}
+
+inline bool shouldRecoverStalledLanding(bool return_command_sent,
+                                        double landing_elapsed_seconds,
+                                        double command_elapsed_seconds) {
+    if (landing_elapsed_seconds < 0.0 || command_elapsed_seconds < 0.0) {
+        return false;
+    }
+    return return_command_sent ? command_elapsed_seconds >= 60.0
+                               : landing_elapsed_seconds >= 15.0;
 }
 
 inline ReturnAction returnActionForMode(ReturnMode mode) {

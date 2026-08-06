@@ -1,0 +1,10 @@
+Latest observed server boot time after the compile interruption: approximately 2026-08-06 14:58 +08:00
+SDK state after reboot: STANDBY, armed=false, altitude=0
+Control processes after reboot: none
+Tegra PMC reset source: SYS_RESET_N
+Tegra PMC reset level: L0
+pstore entries: none
+Persistent previous-boot journal: unavailable
+Recovered kernel panic/OOM/thermal evidence: none
+
+Conclusion: reset cause is unresolved. Do not attribute it to the isolated controller without hardware or persistent system logs.
