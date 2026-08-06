@@ -1,4 +1,6 @@
 /build/
 /runs/
 /.secrets.env
+/.vision.env
+/.openrouter-key
 /.gimbal-preset-verified

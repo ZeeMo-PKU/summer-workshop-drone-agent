@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <optional>
 #include <string>
@@ -18,6 +19,54 @@ enum class PhysicalZone {
     Zone2,
     Zone3,
 };
+
+enum class SceneZone {
+    A,
+    B,
+};
+
+enum class ReturnMode {
+    Standby,
+    Landing,
+    Position,
+    Mission,
+    Takeoff,
+    Unknown,
+};
+
+enum class ReturnAction {
+    Complete,
+    Wait,
+    SendCommand,
+};
+
+inline ReturnAction returnActionForMode(ReturnMode mode) {
+    switch (mode) {
+        case ReturnMode::Standby: return ReturnAction::Complete;
+        case ReturnMode::Landing:
+        case ReturnMode::Takeoff:
+        case ReturnMode::Unknown:
+            return ReturnAction::Wait;
+        case ReturnMode::Position:
+        case ReturnMode::Mission:
+            return ReturnAction::SendCommand;
+    }
+    return ReturnAction::Wait;
+}
+
+struct AnswerLayout {
+    PhysicalZone zone_a = PhysicalZone::Zone1;
+    PhysicalZone zone_b = PhysicalZone::Zone2;
+    PhysicalZone zone_c = PhysicalZone::Zone3;
+};
+
+inline bool operator==(const AnswerLayout& lhs, const AnswerLayout& rhs) {
+    return lhs.zone_a == rhs.zone_a &&
+           lhs.zone_b == rhs.zone_b &&
+           lhs.zone_c == rhs.zone_c;
+}
+
+inline std::optional<AnswerLayout> parseAnswerLayoutToken(std::string text);
 
 inline std::optional<Answer> parseAnswerToken(std::string text) {
     text.erase(text.begin(), std::find_if(text.begin(), text.end(), [](unsigned char ch) {
@@ -58,13 +107,98 @@ inline std::optional<Answer> parseSimulationOracleExpected(
     return parseAnswerToken(text.substr(token, 1));
 }
 
-inline PhysicalZone fixedZoneForAnswer(Answer answer) {
+inline std::optional<AnswerLayout> parseSimulationOracleLayout(
+    const std::string& text) {
+    constexpr const char* kBlockStart = "[SIM_ORACLE ";
+    const auto block = text.find(kBlockStart);
+    if (block == std::string::npos) return std::nullopt;
+    const auto block_end = text.find(']', block);
+    if (block_end == std::string::npos) return std::nullopt;
+
+    std::array<char, 3> labels{};
+    const std::array<std::string, 3> markers = {
+        "slotA=", "slotB=", "slotC="};
+    for (size_t index = 0; index < markers.size(); ++index) {
+        const auto marker = text.find(markers[index], block);
+        if (marker == std::string::npos || marker >= block_end) {
+            return std::nullopt;
+        }
+        const auto token = marker + markers[index].size();
+        if (token >= block_end || text[token] < 'A' || text[token] > 'C') {
+            return std::nullopt;
+        }
+        labels[index] = text[token];
+    }
+
+    std::string mapping;
+    for (size_t zone = 0; zone < labels.size(); ++zone) {
+        if (!mapping.empty()) mapping += ',';
+        mapping += labels[zone];
+        mapping += '=';
+        mapping += static_cast<char>('1' + zone);
+    }
+    return parseAnswerLayoutToken(mapping);
+}
+
+inline PhysicalZone zoneForAnswer(const AnswerLayout& layout, Answer answer) {
     switch (answer) {
-        case Answer::A: return PhysicalZone::Zone1;
-        case Answer::B: return PhysicalZone::Zone2;
-        case Answer::C: return PhysicalZone::Zone3;
+        case Answer::A: return layout.zone_a;
+        case Answer::B: return layout.zone_b;
+        case Answer::C: return layout.zone_c;
     }
     return PhysicalZone::Zone1;
+}
+
+inline std::optional<AnswerLayout> parseAnswerLayoutToken(std::string text) {
+    text.erase(std::remove_if(text.begin(), text.end(), [](unsigned char ch) {
+        return std::isspace(ch);
+    }), text.end());
+
+    AnswerLayout layout;
+    std::array<bool, 3> seen_answers{};
+    std::array<bool, 3> seen_zones{};
+    size_t start = 0;
+    int entry_count = 0;
+    while (start <= text.size()) {
+        const size_t comma = text.find(',', start);
+        const std::string entry = text.substr(
+            start,
+            comma == std::string::npos ? std::string::npos : comma - start);
+        if (entry.size() != 3 || entry[1] != '=' ||
+            entry[0] < 'A' || entry[0] > 'C' ||
+            entry[2] < '1' || entry[2] > '3') {
+            return std::nullopt;
+        }
+
+        const size_t answer_index = static_cast<size_t>(entry[0] - 'A');
+        const size_t zone_index = static_cast<size_t>(entry[2] - '1');
+        if (seen_answers[answer_index] || seen_zones[zone_index]) {
+            return std::nullopt;
+        }
+        seen_answers[answer_index] = true;
+        seen_zones[zone_index] = true;
+
+        const auto zone = static_cast<PhysicalZone>(zone_index);
+        if (entry[0] == 'A') layout.zone_a = zone;
+        if (entry[0] == 'B') layout.zone_b = zone;
+        if (entry[0] == 'C') layout.zone_c = zone;
+        ++entry_count;
+
+        if (comma == std::string::npos) break;
+        start = comma + 1;
+    }
+
+    if (entry_count != 3) return std::nullopt;
+    return layout;
+}
+
+inline std::string answerLayoutName(const AnswerLayout& layout) {
+    const auto zone_number = [](PhysicalZone zone) {
+        return std::to_string(static_cast<int>(zone) + 1);
+    };
+    return "A=" + zone_number(layout.zone_a) +
+           ",B=" + zone_number(layout.zone_b) +
+           ",C=" + zone_number(layout.zone_c);
 }
 
 inline const char* answerName(Answer answer) {
@@ -85,15 +219,18 @@ inline const char* zoneName(PhysicalZone zone) {
     return "unknown physical zone";
 }
 
+inline const char* sceneName(SceneZone scene) {
+    return scene == SceneZone::A ? "A" : "B";
+}
+
 enum class Phase {
-    Idle,
+    Ready,
     TakingOff,
     AwaitingSceneTrigger,
     AwaitingQuestion,
     ExecutingAnswer,
     Returning,
-    Completed,
-    Aborted,
+    RoundCompleted,
 };
 
 enum class EventKind {
@@ -108,21 +245,27 @@ enum class EventKind {
 
 enum class EventAction {
     Ignore,
-    StartMission,
+    StartRound,
     AwaitQuestion,
     CacheQuestion,
     ExecuteAnswer,
     ExecuteCachedQuestion,
     EmergencyReturn,
+    EndMatch,
 };
 
-class SingleRoundStateMachine {
+class ResidentMatchStateMachine {
 public:
     EventAction handle(EventKind event) {
         if (event == EventKind::MatchFinished ||
             event == EventKind::SafetyLineViolation) {
-            if (phase_ == Phase::Completed || phase_ == Phase::Aborted) {
-                return EventAction::Ignore;
+            const bool airborne = phase_ != Phase::Ready &&
+                                  phase_ != Phase::RoundCompleted;
+            match_active_ = false;
+            question_pending_ = false;
+            if (!airborne) {
+                phase_ = Phase::Ready;
+                return EventAction::EndMatch;
             }
             phase_ = Phase::Returning;
             return EventAction::EmergencyReturn;
@@ -130,9 +273,23 @@ public:
 
         switch (event) {
             case EventKind::MatchStarted:
-                if (phase_ != Phase::Idle) return EventAction::Ignore;
+                if (phase_ != Phase::Ready &&
+                    phase_ != Phase::RoundCompleted) {
+                    return EventAction::Ignore;
+                }
+                match_active_ = true;
+                round_index_ = 1;
+                question_pending_ = false;
                 phase_ = Phase::TakingOff;
-                return EventAction::StartMission;
+                return EventAction::StartRound;
+            case EventKind::NextRoundStarted:
+                if (!match_active_ || phase_ != Phase::RoundCompleted) {
+                    return EventAction::Ignore;
+                }
+                ++round_index_;
+                question_pending_ = false;
+                phase_ = Phase::TakingOff;
+                return EventAction::StartRound;
             case EventKind::SceneTriggerSucceeded:
                 if (phase_ != Phase::AwaitingSceneTrigger) {
                     return EventAction::Ignore;
@@ -155,7 +312,6 @@ public:
                 }
                 phase_ = Phase::ExecutingAnswer;
                 return EventAction::ExecuteAnswer;
-            case EventKind::NextRoundStarted:
             case EventKind::Other:
             case EventKind::MatchFinished:
             case EventKind::SafetyLineViolation:
@@ -165,22 +321,31 @@ public:
     }
 
     Phase phase() const { return phase_; }
+    int roundIndex() const { return round_index_; }
+    SceneZone currentScene() const {
+        return round_index_ % 2 == 0 ? SceneZone::A : SceneZone::B;
+    }
+    bool matchActive() const { return match_active_; }
+
     void markSceneReady() { phase_ = Phase::AwaitingSceneTrigger; }
     void markReturning() {
         question_pending_ = false;
         phase_ = Phase::Returning;
     }
-    void markCompleted() {
+    void markRoundCompleted() {
         question_pending_ = false;
-        phase_ = Phase::Completed;
+        phase_ = Phase::RoundCompleted;
     }
-    void markAborted() {
+    void markReady() {
         question_pending_ = false;
-        phase_ = Phase::Aborted;
+        match_active_ = false;
+        phase_ = Phase::Ready;
     }
 
 private:
-    Phase phase_ = Phase::Idle;
+    Phase phase_ = Phase::Ready;
+    int round_index_ = 0;
+    bool match_active_ = false;
     bool question_pending_ = false;
 };
 

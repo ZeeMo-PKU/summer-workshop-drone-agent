@@ -26,10 +26,19 @@ add_executable(mission_sequence_test tests/mission_sequence_test.cpp)
 target_include_directories(mission_sequence_test PRIVATE src)
 target_compile_options(mission_sequence_test PRIVATE -Wall -Wextra -Wpedantic -UNDEBUG)
 
+add_executable(qwen_vision_test tests/qwen_vision_test.cpp)
+target_include_directories(qwen_vision_test PRIVATE src)
+target_compile_options(qwen_vision_test PRIVATE -Wall -Wextra -Wpedantic -UNDEBUG)
+
 add_executable(recognize_test tests/test_recognize.cpp)
 target_include_directories(recognize_test PRIVATE src)
 target_link_libraries(recognize_test PRIVATE PkgConfig::OPENCV)
 target_compile_options(recognize_test PRIVATE -Wall -Wextra -Wpedantic)
+
+add_executable(qwen_pair_probe tests/qwen_pair_probe.cpp)
+target_include_directories(qwen_pair_probe PRIVATE src)
+target_link_libraries(qwen_pair_probe PRIVATE PkgConfig::OPENCV)
+target_compile_options(qwen_pair_probe PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(gimbal_probe src/gimbal_probe.cpp)
 target_link_libraries(gimbal_probe PRIVATE
@@ -49,3 +58,4 @@ target_compile_options(recovery_return PRIVATE -Wall -Wextra -Wpedantic)
 enable_testing()
 add_test(NAME flow_logic_test COMMAND flow_logic_test)
 add_test(NAME mission_sequence_test COMMAND mission_sequence_test)
+add_test(NAME qwen_vision_test COMMAND qwen_vision_test)

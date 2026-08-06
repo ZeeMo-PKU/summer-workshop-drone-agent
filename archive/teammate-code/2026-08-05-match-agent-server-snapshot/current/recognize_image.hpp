@@ -6,17 +6,13 @@
 //  依赖：nlohmann/json、OpenCV（机载已装）、/usr/bin/curl。
 
 #include <algorithm>
-#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <cstring>
 #include <string>
 #include <vector>
 #include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 
 #include <nlohmann/json.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -25,11 +21,12 @@
 namespace recognize {
 
 // ---------------- 配置 ----------------
-inline constexpr const char* kDefaultApiUrl =
+inline constexpr const char* kApiUrl =
     "https://ws-sxeumotzb6ouodsm.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions";
-inline constexpr const char* kDefaultModelName = "qwen-vl-max";
-// Prefer provider-neutral VISION_* variables. DASHSCOPE_API_KEY remains a
-// compatibility fallback for the original isolated snapshot.
+inline constexpr const char* kModelName = "qwen-vl-max";
+// API key：仅从环境变量读取；历史快照中的硬编码值已为公开归档脱敏。
+inline constexpr const char* kFallbackApiKey =
+    "";
 inline constexpr int kMaxImageDim = 1280;   // 压缩后图片最长边
 inline constexpr int kJpegQuality = 85;
 inline constexpr const char* kDefaultPrompt =
@@ -120,80 +117,17 @@ inline std::string popen_capture(const std::string& cmd) {
     return out;
 }
 
-inline bool write_private_file(const std::string& path,
-                               const std::string& content) {
-    const int fd = ::open(
-        path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
-    if (fd < 0) {
-        std::cerr << "[recognize] cannot create private temporary file: "
-                  << std::strerror(errno) << std::endl;
-        return false;
-    }
-    size_t written = 0;
-    while (written < content.size()) {
-        const ssize_t count = ::write(
-            fd, content.data() + written, content.size() - written);
-        if (count < 0) {
-            if (errno == EINTR) continue;
-            ::close(fd);
-            ::remove(path.c_str());
-            return false;
-        }
-        written += static_cast<size_t>(count);
-    }
-    return ::close(fd) == 0;
-}
-
 // ---- 识别主函数：失败一律返回空字符串 ----
 inline std::string recognizeImage(const std::string& image_path,
                                   const std::string& prompt = kDefaultPrompt,
                                   int timeout_ms = 60000) {
-    const char* vision_key = std::getenv("VISION_API_KEY");
-    const char* dashscope_key = std::getenv("DASHSCOPE_API_KEY");
-    const bool provider_override =
-        std::getenv("VISION_API_URL") || std::getenv("VISION_MODEL");
-    std::string api_key =
-        (vision_key && *vision_key) ? vision_key : "";
-    const char* key_file = std::getenv("VISION_API_KEY_FILE");
-    if (api_key.empty() && key_file && *key_file) {
-        std::ifstream input(key_file);
-        if (input) {
-            api_key.assign(
-                std::istreambuf_iterator<char>(input),
-                std::istreambuf_iterator<char>());
-            api_key.erase(std::remove_if(
-                api_key.begin(), api_key.end(), [](unsigned char ch) {
-                    return std::isspace(ch);
-                }), api_key.end());
-        }
-    }
-    if (api_key.empty() && !provider_override &&
-        dashscope_key && *dashscope_key) {
-        api_key = dashscope_key;
-    }
+    std::cerr<<"[recognize] prompt:"<<prompt<<'\n';
+    const char* env_key = std::getenv("DASHSCOPE_API_KEY");
+    const std::string api_key =
+        (env_key && *env_key) ? std::string(env_key)
+                              : std::string(kFallbackApiKey);
     if (api_key.empty()) {
-        std::cerr << "[recognize] no API key (set VISION_API_KEY or "
-                     "VISION_API_KEY_FILE)"
-                  << std::endl;
-        return "";
-    }
-
-    const char* configured_url = std::getenv("VISION_API_URL");
-    const char* configured_model = std::getenv("VISION_MODEL");
-    const std::string api_url =
-        (configured_url && *configured_url) ? configured_url : kDefaultApiUrl;
-    const std::string model =
-        (configured_model && *configured_model)
-            ? configured_model
-            : kDefaultModelName;
-    const bool valid_url = api_url.rfind("https://", 0) == 0 &&
-        std::all_of(api_url.begin(), api_url.end(), [](unsigned char ch) {
-            return std::isalnum(ch) || ch == ':' || ch == '/' || ch == '.' ||
-                   ch == '-' || ch == '_' || ch == '?' || ch == '=' ||
-                   ch == '&';
-        });
-    if (!valid_url || model.empty()) {
-        std::cerr << "[recognize] invalid VISION_API_URL or VISION_MODEL"
+        std::cerr << "[recognize] no API key (set DASHSCOPE_API_KEY)"
                   << std::endl;
         return "";
     }
@@ -202,7 +136,7 @@ inline std::string recognizeImage(const std::string& image_path,
     if (data_uri.empty()) return "";
 
     nlohmann::json payload = {
-        {"model", model},
+        {"model", kModelName},
         {"messages", nlohmann::json::array({{
             {"role", "user"},
             {"content", nlohmann::json::array({
@@ -214,15 +148,16 @@ inline std::string recognizeImage(const std::string& image_path,
     };
 
     const std::string pid = std::to_string(::getpid());
-    const std::string tmp_json = "/tmp/match_flow_recognize_" + pid + ".json";
-    const std::string tmp_hdr = "/tmp/match_flow_recognize_" + pid + ".hdr";
-    if (!write_private_file(tmp_json, payload.dump())) return "";
-    const std::string headers =
-        "Authorization: Bearer " + api_key +
-        "\nContent-Type: application/json\n";
-    if (!write_private_file(tmp_hdr, headers)) {
-        ::remove(tmp_json.c_str());
-        return "";
+    const std::string tmp_json = "/tmp/recognize_" + pid + ".json";
+    const std::string tmp_hdr = "/tmp/recognize_" + pid + ".hdr";
+    {
+        std::ofstream f(tmp_json, std::ios::binary);
+        f << payload.dump();
+    }
+    {
+        std::ofstream f(tmp_hdr);
+        f << "Authorization: Bearer " << api_key << "\n";
+        f << "Content-Type: application/json\n";
     }
 
     int secs = timeout_ms / 1000;
@@ -231,7 +166,7 @@ inline std::string recognizeImage(const std::string& image_path,
         "curl -s -m " + std::to_string(secs) +
         " -H @" + tmp_hdr +
         " --data @" + tmp_json +
-        " \"" + api_url + "\"";
+        " \"" + kApiUrl + "\"";
 
     const std::string out = popen_capture(cmd);
 

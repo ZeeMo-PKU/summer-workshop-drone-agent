@@ -19,6 +19,14 @@ out/
 !test-data/runs/**/*.jpeg
 !test-data/runs/**/*.png
 !test-data/runs/**/*.log
+!experiments/match_agent_flow_test/test-data/**/*.jpg
+!experiments/match_agent_flow_test/test-data/**/*.jpeg
+!experiments/match_agent_flow_test/test-data/**/*.png
+!experiments/match_agent_flow_test/test-data/**/*.log
+!archive/teammate-code/**/*.jpg
+!archive/teammate-code/**/*.jpeg
+!archive/teammate-code/**/*.png
+!archive/teammate-code/**/*.log
 
 # Local configuration and credentials
 .env

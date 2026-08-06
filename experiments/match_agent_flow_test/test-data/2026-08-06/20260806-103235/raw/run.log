@@ -1,0 +1,400 @@
+2026-08-06T02:32:37Z [startup] WARNING: --execute enabled; flight commands may run
+2026-08-06T02:32:37Z [sdk] getModeStatus(preflight) status=0
+2026-08-06T02:32:37Z [sdk] getPodCapability(preflight) status=0
+2026-08-06T02:32:37Z [startup] SDK connected; waiting for taskGuidance
+2026-08-06T02:40:18Z [taskGuidance] type=guid message=MATCH_FINISHED
+2026-08-06T02:40:18Z [resident] match ended on ground; waiting for MATCH_STARTED
+2026-08-06T02:41:49Z [taskGuidance] type=guid message=MATCH_STARTED
+2026-08-06T02:41:49Z [sdk] getModeStatus(round-preflight) status=0
+2026-08-06T02:41:49Z [sdk] getPodCapability(round-preflight) status=0
+2026-08-06T02:41:49Z [round] starting flight sequence=1 round=1 scene=B
+2026-08-06T02:41:51Z [sdk] gripperClose status=0
+2026-08-06T02:41:52Z [sdk] getModeStatus status=0
+2026-08-06T02:41:52Z [sdk] takeOff(1.57m) status=0
+2026-08-06T02:41:52Z [match] takeoff accepted; waiting for POSITION
+2026-08-06T02:41:52Z [mode] TAKEOFF
+2026-08-06T02:42:07Z [mode] POSITION
+2026-08-06T02:42:07Z [match] takeoff completed
+2026-08-06T02:42:07Z [navigation] sending target: scene B
+2026-08-06T02:42:07Z [sdk] setPosition status=0
+2026-08-06T02:42:07Z [navigation] target=scene B distance=5.274475m altitude=1.467000m altitude_error=0.103000m
+2026-08-06T02:42:09Z [navigation] target=scene B distance=5.274475m altitude=1.428000m altitude_error=0.142000m
+2026-08-06T02:42:10Z [navigation] target=scene B distance=5.274475m altitude=1.417000m altitude_error=0.153000m
+2026-08-06T02:42:12Z [navigation] target=scene B distance=5.274475m altitude=1.423000m altitude_error=0.147000m
+2026-08-06T02:42:13Z [navigation] target=scene B distance=5.274475m altitude=1.429000m altitude_error=0.141000m
+2026-08-06T02:42:14Z [navigation] target=scene B distance=3.955856m altitude=1.446000m altitude_error=0.124000m
+2026-08-06T02:42:16Z [navigation] target=scene B distance=2.637238m altitude=1.495000m altitude_error=0.075000m
+2026-08-06T02:42:17Z [navigation] target=scene B distance=1.977928m altitude=1.522000m altitude_error=0.048000m
+2026-08-06T02:42:18Z [navigation] target=scene B distance=0.659309m altitude=1.550000m altitude_error=0.020000m
+2026-08-06T02:42:18Z [taskGuidance] type=guid message=ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:42:19Z [navigation] target=scene B distance=0.000000m altitude=1.566000m altitude_error=0.004000m
+2026-08-06T02:42:21Z [navigation] target=scene B distance=0.000000m altitude=1.562000m altitude_error=0.008000m
+2026-08-06T02:42:21Z [taskGuidance] type=question message=图中车辆的车牌号码是什么？ A. 皖AHF220 B. 皖CHF220 C. 皖AHJ220 [SIM_ORACLE question=REAL-4-01 expected=A slotA=A slotB=B slotC=C]
+2026-08-06T02:42:21Z [taskGuidance] type=guid message=SCENE_TRIGGER_SUCCEEDED
+2026-08-06T02:42:22Z [navigation] target=scene B distance=0.000000m altitude=1.562000m altitude_error=0.008000m
+2026-08-06T02:42:22Z [navigation] reached scene B; stable hover confirmed for 3000ms
+2026-08-06T02:42:22Z [round] scene B reached; waiting for trigger
+2026-08-06T02:42:22Z [event] ignored in current resident state: ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:42:22Z [round] question arrived before trigger; cached for this round
+2026-08-06T02:42:22Z [match] question received: 图中车辆的车牌号码是什么？ A. 皖AHF220 B. 皖CHF220 C. 皖AHJ220 [SIM_ORACLE question=REAL-4-01 expected=A slotA=A slotB=B slotC=C]
+2026-08-06T02:42:22Z [sdk] openFramePool(Front) status=0
+2026-08-06T02:42:22Z [capture] Front saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0001-round-0001-scene-B/scene_B.jpg
+2026-08-06T02:42:25Z [vision] task=semantic-answer attempt=1 valid=false response="INVALID"
+2026-08-06T02:42:28Z [vision] task=semantic-answer attempt=2 valid=false response="INVALID"
+2026-08-06T02:42:28Z [vision] semantic mismatch: qwen=INVALID oracle=A; simulation uses oracle
+2026-08-06T02:42:28Z [round] recognized semantic answer=A
+2026-08-06T02:42:28Z [round] flying to physical zone 2
+2026-08-06T02:42:28Z [navigation] sending target: physical zone 2
+2026-08-06T02:42:28Z [sdk] setPosition status=0
+2026-08-06T02:42:28Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:42:29Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:42:31Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:42:32Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:42:32Z [taskGuidance] type=guid message=EXITED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:42:33Z [navigation] target=physical zone 2 distance=4.705380m altitude=1.561000m altitude_error=0.009000m
+2026-08-06T02:42:35Z [navigation] target=physical zone 2 distance=3.136920m altitude=1.567000m altitude_error=0.003000m
+2026-08-06T02:42:36Z [navigation] target=physical zone 2 distance=2.352690m altitude=1.567000m altitude_error=0.003000m
+2026-08-06T02:42:37Z [navigation] target=physical zone 2 distance=0.784230m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:42:38Z [navigation] target=physical zone 2 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:42:40Z [navigation] target=physical zone 2 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:42:40Z [navigation] reached physical zone 2; stable hover confirmed for 1000ms
+2026-08-06T02:42:40Z [sdk] gimbalDownSet status=0
+2026-08-06T02:42:42Z [sdk] openFramePool(PodVisibleLight) status=0
+2026-08-06T02:42:42Z [capture] PodVisibleLight saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0001-round-0001-scene-B/answer_layout.jpg
+2026-08-06T02:42:44Z [vision] task=answer-layout attempt=1 valid=false response="INVALID"
+2026-08-06T02:42:49Z [vision] task=answer-layout attempt=2 valid=false response="INVALID"
+2026-08-06T02:42:49Z [vision] layout mismatch: qwen=INVALID oracle=A=1,B=2,C=3; simulation uses oracle
+2026-08-06T02:42:49Z [round] resolved answer layout=A=1,B=2,C=3
+2026-08-06T02:42:49Z [round] flying to physical zone 1
+2026-08-06T02:42:49Z [navigation] sending target: physical zone 1
+2026-08-06T02:42:49Z [sdk] setPosition status=0
+2026-08-06T02:42:49Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:42:50Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:42:51Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:42:52Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.570000m altitude_error=0.000000m
+2026-08-06T02:42:54Z [navigation] target=physical zone 1 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:42:54Z [navigation] reached physical zone 1; stable hover confirmed for 1000ms
+2026-08-06T02:42:57Z [taskGuidance] type=guid message=ANSWER_WRONG
+2026-08-06T02:42:57Z [sdk] gripperOpen status=0
+2026-08-06T02:42:57Z [round] gripper open accepted; waiting for referee answer result
+2026-08-06T02:42:57Z [round] returning to start zone
+2026-08-06T02:42:57Z [navigation] sending target: start
+2026-08-06T02:42:57Z [sdk] setPosition status=0
+2026-08-06T02:42:57Z [navigation] target=start distance=3.397201m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:42:58Z [navigation] target=start distance=3.397201m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:42:59Z [navigation] target=start distance=3.397201m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:43:01Z [navigation] target=start distance=2.972551m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:43:02Z [navigation] target=start distance=1.273950m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:43:04Z [navigation] target=start distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:43:05Z [navigation] target=start distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:43:05Z [navigation] reached start; stable hover confirmed for 1000ms
+2026-08-06T02:43:05Z [round] start zone reached
+2026-08-06T02:43:05Z [return] reason=round completed
+2026-08-06T02:43:06Z [sdk] returnToHome status=0
+2026-08-06T02:43:06Z [mode] LANDING
+2026-08-06T02:43:46Z [mode] STANDBY
+2026-08-06T02:43:46Z [return] landing confirmed
+2026-08-06T02:43:46Z [round] flow completed and landed; resident process is waiting for NEXT_ROUND_STARTED or MATCH_STARTED
+2026-08-06T02:43:46Z [event] ignored in current resident state: EXITED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:43:46Z [event] ignored in current resident state: ANSWER_WRONG
+2026-08-06T02:43:46Z [taskGuidance] type=guid message=NEXT_ROUND_STARTED
+2026-08-06T02:43:46Z [sdk] getModeStatus(round-preflight) status=0
+2026-08-06T02:43:48Z [sdk] getPodCapability(round-preflight) status=0
+2026-08-06T02:43:48Z [round] starting flight sequence=2 round=2 scene=A
+2026-08-06T02:43:51Z [sdk] gripperClose status=0
+2026-08-06T02:43:52Z [sdk] getModeStatus status=0
+2026-08-06T02:43:52Z [sdk] takeOff(1.57m) status=0
+2026-08-06T02:43:52Z [match] takeoff accepted; waiting for POSITION
+2026-08-06T02:43:52Z [mode] TAKEOFF
+2026-08-06T02:44:06Z [mode] POSITION
+2026-08-06T02:44:06Z [match] takeoff completed
+2026-08-06T02:44:06Z [navigation] sending target: scene A
+2026-08-06T02:44:06Z [sdk] setPosition status=0
+2026-08-06T02:44:06Z [navigation] target=scene A distance=6.054433m altitude=1.479000m altitude_error=0.091000m
+2026-08-06T02:44:08Z [navigation] target=scene A distance=6.054433m altitude=1.448000m altitude_error=0.122000m
+2026-08-06T02:44:09Z [navigation] target=scene A distance=6.054433m altitude=1.436000m altitude_error=0.134000m
+2026-08-06T02:44:10Z [navigation] target=scene A distance=6.054433m altitude=1.441000m altitude_error=0.129000m
+2026-08-06T02:44:12Z [navigation] target=scene A distance=6.054433m altitude=1.450000m altitude_error=0.120000m
+2026-08-06T02:44:13Z [navigation] target=scene A distance=5.271770m altitude=1.453000m altitude_error=0.117000m
+2026-08-06T02:44:14Z [navigation] target=scene A distance=3.708433m altitude=1.489000m altitude_error=0.081000m
+2026-08-06T02:44:16Z [navigation] target=scene A distance=2.352690m altitude=1.521000m altitude_error=0.049000m
+2026-08-06T02:44:17Z [navigation] target=scene A distance=0.784230m altitude=1.552000m altitude_error=0.018000m
+2026-08-06T02:44:18Z [taskGuidance] type=guid message=ENTERED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:44:18Z [navigation] target=scene A distance=0.000000m altitude=1.566000m altitude_error=0.004000m
+2026-08-06T02:44:20Z [navigation] target=scene A distance=0.000000m altitude=1.563000m altitude_error=0.007000m
+2026-08-06T02:44:21Z [navigation] target=scene A distance=0.000000m altitude=1.562000m altitude_error=0.008000m
+2026-08-06T02:44:21Z [taskGuidance] type=question message=图中共有多少架飞机？ A. 1 B. 0 C. 2 [SIM_ORACLE question=REAL-1-01 expected=A slotA=A slotB=C slotC=B]
+2026-08-06T02:44:21Z [taskGuidance] type=guid message=SCENE_TRIGGER_SUCCEEDED
+2026-08-06T02:44:22Z [navigation] reached scene A; stable hover confirmed for 3000ms
+2026-08-06T02:44:22Z [round] scene A reached; waiting for trigger
+2026-08-06T02:44:22Z [event] ignored in current resident state: ENTERED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:44:22Z [round] question arrived before trigger; cached for this round
+2026-08-06T02:44:22Z [match] question received: 图中共有多少架飞机？ A. 1 B. 0 C. 2 [SIM_ORACLE question=REAL-1-01 expected=A slotA=A slotB=C slotC=B]
+2026-08-06T02:44:22Z [sdk] openFramePool(Front) status=0
+2026-08-06T02:44:22Z [capture] Front saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0002-round-0002-scene-A/scene_A.jpg
+2026-08-06T02:44:24Z [vision] task=semantic-answer attempt=1 valid=true response="B"
+2026-08-06T02:44:24Z [vision] semantic mismatch: qwen=B oracle=A; simulation uses oracle
+2026-08-06T02:44:24Z [round] recognized semantic answer=A
+2026-08-06T02:44:24Z [round] flying to physical zone 2
+2026-08-06T02:44:24Z [navigation] sending target: physical zone 2
+2026-08-06T02:44:24Z [sdk] setPosition status=0
+2026-08-06T02:44:24Z [navigation] target=physical zone 2 distance=5.274477m altitude=1.563000m altitude_error=0.007000m
+2026-08-06T02:44:25Z [navigation] target=physical zone 2 distance=5.274477m altitude=1.563000m altitude_error=0.007000m
+2026-08-06T02:44:27Z [navigation] target=physical zone 2 distance=5.274477m altitude=1.562000m altitude_error=0.008000m
+2026-08-06T02:44:28Z [taskGuidance] type=guid message=EXITED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:44:28Z [navigation] target=physical zone 2 distance=4.615167m altitude=1.562000m altitude_error=0.008000m
+2026-08-06T02:44:30Z [navigation] target=physical zone 2 distance=2.637239m altitude=1.565000m altitude_error=0.005000m
+2026-08-06T02:44:32Z [navigation] target=physical zone 2 distance=1.318619m altitude=1.567000m altitude_error=0.003000m
+2026-08-06T02:44:33Z [navigation] target=physical zone 2 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:35Z [navigation] target=physical zone 2 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:35Z [navigation] reached physical zone 2; stable hover confirmed for 1000ms
+2026-08-06T02:44:35Z [sdk] gimbalDownSet status=0
+2026-08-06T02:44:37Z [sdk] openFramePool(PodVisibleLight) status=0
+2026-08-06T02:44:37Z [capture] PodVisibleLight saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0002-round-0002-scene-A/answer_layout.jpg
+2026-08-06T02:44:39Z [vision] task=answer-layout attempt=1 valid=false response="INVALID"
+2026-08-06T02:44:43Z [vision] task=answer-layout attempt=2 valid=false response="INVALID"
+2026-08-06T02:44:43Z [vision] layout mismatch: qwen=INVALID oracle=A=1,B=3,C=2; simulation uses oracle
+2026-08-06T02:44:43Z [round] resolved answer layout=A=1,B=3,C=2
+2026-08-06T02:44:43Z [round] flying to physical zone 1
+2026-08-06T02:44:43Z [navigation] sending target: physical zone 1
+2026-08-06T02:44:43Z [sdk] setPosition status=0
+2026-08-06T02:44:43Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:45Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:46Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:47Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.570000m altitude_error=0.000000m
+2026-08-06T02:44:48Z [navigation] target=physical zone 1 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:49Z [navigation] reached physical zone 1; stable hover confirmed for 1000ms
+2026-08-06T02:44:51Z [taskGuidance] type=guid message=ANSWER_WRONG
+2026-08-06T02:44:51Z [sdk] gripperOpen status=0
+2026-08-06T02:44:51Z [round] gripper open accepted; waiting for referee answer result
+2026-08-06T02:44:51Z [round] returning to start zone
+2026-08-06T02:44:51Z [navigation] sending target: start
+2026-08-06T02:44:51Z [sdk] setPosition status=0
+2026-08-06T02:44:51Z [navigation] target=start distance=3.397201m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:53Z [navigation] target=start distance=3.397201m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:54Z [navigation] target=start distance=3.397201m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:55Z [navigation] target=start distance=3.397201m altitude=1.573000m altitude_error=0.003000m
+2026-08-06T02:44:56Z [navigation] target=start distance=2.123251m altitude=1.566000m altitude_error=0.004000m
+2026-08-06T02:44:57Z [navigation] target=start distance=1.273950m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:44:58Z [navigation] target=start distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:45:00Z [navigation] target=start distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:45:00Z [navigation] reached start; stable hover confirmed for 1000ms
+2026-08-06T02:45:00Z [round] start zone reached
+2026-08-06T02:45:00Z [return] reason=round completed
+2026-08-06T02:45:00Z [sdk] returnToHome status=0
+2026-08-06T02:45:00Z [mode] LANDING
+2026-08-06T02:45:40Z [taskGuidance] type=guid message=NEXT_ROUND_STARTED
+2026-08-06T02:45:41Z [mode] STANDBY
+2026-08-06T02:45:41Z [return] landing confirmed
+2026-08-06T02:45:41Z [round] flow completed and landed; resident process is waiting for NEXT_ROUND_STARTED or MATCH_STARTED
+2026-08-06T02:45:41Z [event] ignored in current resident state: EXITED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:45:41Z [event] ignored in current resident state: ANSWER_WRONG
+2026-08-06T02:45:41Z [sdk] getModeStatus(round-preflight) status=0
+2026-08-06T02:45:41Z [sdk] getPodCapability(round-preflight) status=0
+2026-08-06T02:45:41Z [round] starting flight sequence=3 round=3 scene=B
+2026-08-06T02:45:43Z [sdk] gripperClose status=0
+2026-08-06T02:45:44Z [sdk] getModeStatus status=0
+2026-08-06T02:45:44Z [sdk] takeOff(1.57m) status=0
+2026-08-06T02:45:44Z [match] takeoff accepted; waiting for POSITION
+2026-08-06T02:45:44Z [mode] TAKEOFF
+2026-08-06T02:45:59Z [mode] POSITION
+2026-08-06T02:45:59Z [match] takeoff completed
+2026-08-06T02:45:59Z [navigation] sending target: scene B
+2026-08-06T02:46:00Z [sdk] setPosition status=0
+2026-08-06T02:46:00Z [navigation] target=scene B distance=5.274475m altitude=1.456000m altitude_error=0.114000m
+2026-08-06T02:46:00Z [navigation] target=scene B distance=5.274475m altitude=1.430000m altitude_error=0.140000m
+2026-08-06T02:46:02Z [navigation] target=scene B distance=5.274475m altitude=1.417000m altitude_error=0.153000m
+2026-08-06T02:46:03Z [navigation] target=scene B distance=5.274475m altitude=1.420000m altitude_error=0.150000m
+2026-08-06T02:46:04Z [navigation] target=scene B distance=5.274475m altitude=1.428000m altitude_error=0.142000m
+2026-08-06T02:46:05Z [navigation] target=scene B distance=4.615166m altitude=1.436000m altitude_error=0.134000m
+2026-08-06T02:46:07Z [navigation] target=scene B distance=3.296547m altitude=1.476000m altitude_error=0.094000m
+2026-08-06T02:46:08Z [navigation] target=scene B distance=2.637238m altitude=1.505000m altitude_error=0.065000m
+2026-08-06T02:46:09Z [navigation] target=scene B distance=1.318619m altitude=1.532000m altitude_error=0.038000m
+2026-08-06T02:46:10Z [taskGuidance] type=guid message=ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:46:11Z [navigation] target=scene B distance=0.000000m altitude=1.565000m altitude_error=0.005000m
+2026-08-06T02:46:12Z [navigation] target=scene B distance=0.000000m altitude=1.565000m altitude_error=0.005000m
+2026-08-06T02:46:13Z [navigation] target=scene B distance=0.000000m altitude=1.562000m altitude_error=0.008000m
+2026-08-06T02:46:14Z [navigation] reached scene B; stable hover confirmed for 3000ms
+2026-08-06T02:46:14Z [round] scene B reached; waiting for trigger
+2026-08-06T02:46:14Z [event] ignored in current resident state: ENTERED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:46:14Z [taskGuidance] type=question message=图中共有多少辆地面车辆？ A. 5 B. 4 C. 1 [SIM_ORACLE question=REAL-3-03 expected=B slotA=B slotB=C slotC=A]
+2026-08-06T02:46:14Z [round] question arrived before trigger; cached for this round
+2026-08-06T02:46:14Z [taskGuidance] type=guid message=SCENE_TRIGGER_SUCCEEDED
+2026-08-06T02:46:14Z [match] question received: 图中共有多少辆地面车辆？ A. 5 B. 4 C. 1 [SIM_ORACLE question=REAL-3-03 expected=B slotA=B slotB=C slotC=A]
+2026-08-06T02:46:14Z [sdk] openFramePool(Front) status=0
+2026-08-06T02:46:14Z [capture] Front saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0003-round-0003-scene-B/scene_B.jpg
+2026-08-06T02:46:16Z [vision] task=semantic-answer attempt=1 valid=false response="INVALID"
+2026-08-06T02:46:20Z [vision] task=semantic-answer attempt=2 valid=false response="INVALID"
+2026-08-06T02:46:20Z [vision] semantic mismatch: qwen=INVALID oracle=B; simulation uses oracle
+2026-08-06T02:46:20Z [round] recognized semantic answer=B
+2026-08-06T02:46:20Z [round] flying to physical zone 2
+2026-08-06T02:46:20Z [navigation] sending target: physical zone 2
+2026-08-06T02:46:20Z [sdk] setPosition status=0
+2026-08-06T02:46:20Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:46:21Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:46:22Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:46:24Z [navigation] target=physical zone 2 distance=6.054433m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:46:24Z [taskGuidance] type=guid message=EXITED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:46:25Z [navigation] target=physical zone 2 distance=5.489610m altitude=1.566000m altitude_error=0.004000m
+2026-08-06T02:46:26Z [navigation] target=physical zone 2 distance=3.921150m altitude=1.565000m altitude_error=0.005000m
+2026-08-06T02:46:27Z [navigation] target=physical zone 2 distance=3.136920m altitude=1.567000m altitude_error=0.003000m
+2026-08-06T02:46:28Z [navigation] target=physical zone 2 distance=2.152560m altitude=1.567000m altitude_error=0.003000m
+2026-08-06T02:46:29Z [navigation] target=physical zone 2 distance=0.784230m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:46:31Z [navigation] target=physical zone 2 distance=0.000000m altitude=1.570000m altitude_error=0.000000m
+2026-08-06T02:46:31Z [navigation] reached physical zone 2; stable hover confirmed for 1000ms
+2026-08-06T02:46:31Z [sdk] gimbalDownSet status=0
+2026-08-06T02:46:33Z [sdk] openFramePool(PodVisibleLight) status=0
+2026-08-06T02:46:33Z [capture] PodVisibleLight saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0003-round-0003-scene-B/answer_layout.jpg
+2026-08-06T02:46:35Z [vision] task=answer-layout attempt=1 valid=false response="INVALID"
+2026-08-06T02:46:39Z [vision] task=answer-layout attempt=2 valid=false response="INVALID"
+2026-08-06T02:46:39Z [vision] layout mismatch: qwen=INVALID oracle=A=3,B=1,C=2; simulation uses oracle
+2026-08-06T02:46:39Z [round] resolved answer layout=A=3,B=1,C=2
+2026-08-06T02:46:39Z [round] flying to physical zone 1
+2026-08-06T02:46:39Z [navigation] sending target: physical zone 1
+2026-08-06T02:46:39Z [sdk] setPosition status=0
+2026-08-06T02:46:39Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:41Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:42Z [navigation] target=physical zone 1 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:44Z [navigation] target=physical zone 1 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:45Z [navigation] target=physical zone 1 distance=0.000000m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:46:45Z [navigation] reached physical zone 1; stable hover confirmed for 1000ms
+2026-08-06T02:46:47Z [sdk] gripperOpen status=0
+2026-08-06T02:46:47Z [round] gripper open accepted; waiting for referee answer result
+2026-08-06T02:46:49Z [taskGuidance] type=guid message=ANSWER_WRONG
+2026-08-06T02:46:49Z [round] returning to start zone
+2026-08-06T02:46:49Z [navigation] sending target: start
+2026-08-06T02:46:49Z [sdk] setPosition status=0
+2026-08-06T02:46:49Z [navigation] target=start distance=3.397201m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:51Z [navigation] target=start distance=3.397201m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:52Z [navigation] target=start distance=3.397201m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:53Z [navigation] target=start distance=2.972551m altitude=1.573000m altitude_error=0.003000m
+2026-08-06T02:46:54Z [navigation] target=start distance=2.123251m altitude=1.566000m altitude_error=0.004000m
+2026-08-06T02:46:56Z [navigation] target=start distance=0.849300m altitude=1.570000m altitude_error=0.000000m
+2026-08-06T02:46:57Z [navigation] target=start distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:46:58Z [navigation] reached start; stable hover confirmed for 1000ms
+2026-08-06T02:46:58Z [round] start zone reached
+2026-08-06T02:46:58Z [return] reason=round completed
+2026-08-06T02:46:58Z [sdk] returnToHome status=0
+2026-08-06T02:46:58Z [mode] LANDING
+2026-08-06T02:47:38Z [taskGuidance] type=guid message=NEXT_ROUND_STARTED
+2026-08-06T02:47:39Z [mode] STANDBY
+2026-08-06T02:47:39Z [return] landing confirmed
+2026-08-06T02:47:39Z [round] flow completed and landed; resident process is waiting for NEXT_ROUND_STARTED or MATCH_STARTED
+2026-08-06T02:47:39Z [event] ignored in current resident state: EXITED_SCENE_B_TRIGGER_ZONE
+2026-08-06T02:47:39Z [event] ignored in current resident state: ANSWER_WRONG
+2026-08-06T02:47:39Z [sdk] getModeStatus(round-preflight) status=0
+2026-08-06T02:47:39Z [sdk] getPodCapability(round-preflight) status=0
+2026-08-06T02:47:39Z [round] starting flight sequence=4 round=4 scene=A
+2026-08-06T02:47:41Z [sdk] gripperClose status=0
+2026-08-06T02:47:42Z [sdk] getModeStatus status=0
+2026-08-06T02:47:42Z [sdk] takeOff(1.57m) status=0
+2026-08-06T02:47:42Z [match] takeoff accepted; waiting for POSITION
+2026-08-06T02:47:42Z [mode] TAKEOFF
+2026-08-06T02:47:58Z [mode] POSITION
+2026-08-06T02:47:58Z [match] takeoff completed
+2026-08-06T02:47:58Z [navigation] sending target: scene A
+2026-08-06T02:47:58Z [sdk] setPosition status=0
+2026-08-06T02:47:58Z [navigation] target=scene A distance=6.054433m altitude=1.460000m altitude_error=0.110000m
+2026-08-06T02:47:58Z [navigation] target=scene A distance=6.054433m altitude=1.434000m altitude_error=0.136000m
+2026-08-06T02:47:59Z [navigation] target=scene A distance=6.054433m altitude=1.419000m altitude_error=0.151000m
+2026-08-06T02:48:01Z [navigation] target=scene A distance=6.054433m altitude=1.420000m altitude_error=0.150000m
+2026-08-06T02:48:02Z [navigation] target=scene A distance=6.054433m altitude=1.425000m altitude_error=0.145000m
+2026-08-06T02:48:03Z [navigation] target=scene A distance=6.054433m altitude=1.436000m altitude_error=0.134000m
+2026-08-06T02:48:05Z [navigation] target=scene A distance=4.489655m altitude=1.464000m altitude_error=0.106000m
+2026-08-06T02:48:06Z [navigation] target=scene A distance=3.136920m altitude=1.491000m altitude_error=0.079000m
+2026-08-06T02:48:07Z [navigation] target=scene A distance=1.568460m altitude=1.527000m altitude_error=0.043000m
+2026-08-06T02:48:08Z [navigation] target=scene A distance=0.784230m altitude=1.551000m altitude_error=0.019000m
+2026-08-06T02:48:09Z [taskGuidance] type=guid message=ENTERED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:48:10Z [navigation] target=scene A distance=0.000000m altitude=1.566000m altitude_error=0.004000m
+2026-08-06T02:48:11Z [navigation] target=scene A distance=0.000000m altitude=1.563000m altitude_error=0.007000m
+2026-08-06T02:48:12Z [navigation] reached scene A; stable hover confirmed for 3000ms
+2026-08-06T02:48:12Z [round] scene A reached; waiting for trigger
+2026-08-06T02:48:12Z [event] ignored in current resident state: ENTERED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:48:12Z [taskGuidance] type=question message=图中共有多少个储油罐？ A. 1 B. 0 C. 2 [SIM_ORACLE question=REAL-2-01 expected=A slotA=C slotB=B slotC=A]
+2026-08-06T02:48:12Z [round] question arrived before trigger; cached for this round
+2026-08-06T02:48:12Z [taskGuidance] type=guid message=SCENE_TRIGGER_SUCCEEDED
+2026-08-06T02:48:12Z [match] question received: 图中共有多少个储油罐？ A. 1 B. 0 C. 2 [SIM_ORACLE question=REAL-2-01 expected=A slotA=C slotB=B slotC=A]
+2026-08-06T02:48:13Z [sdk] openFramePool(Front) status=0
+2026-08-06T02:48:13Z [capture] Front saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0004-round-0004-scene-A/scene_A.jpg
+2026-08-06T02:48:16Z [vision] task=semantic-answer attempt=1 valid=false response="INVALID"
+2026-08-06T02:48:20Z [vision] task=semantic-answer attempt=2 valid=false response="INVALID"
+2026-08-06T02:48:20Z [vision] semantic mismatch: qwen=INVALID oracle=A; simulation uses oracle
+2026-08-06T02:48:20Z [round] recognized semantic answer=A
+2026-08-06T02:48:20Z [round] flying to physical zone 2
+2026-08-06T02:48:20Z [navigation] sending target: physical zone 2
+2026-08-06T02:48:20Z [sdk] setPosition status=0
+2026-08-06T02:48:20Z [navigation] target=physical zone 2 distance=5.274477m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:48:21Z [navigation] target=physical zone 2 distance=5.274477m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:48:22Z [navigation] target=physical zone 2 distance=5.274477m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:48:23Z [navigation] target=physical zone 2 distance=5.274477m altitude=1.564000m altitude_error=0.006000m
+2026-08-06T02:48:24Z [taskGuidance] type=guid message=EXITED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:48:24Z [navigation] target=physical zone 2 distance=4.615167m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:48:25Z [navigation] target=physical zone 2 distance=3.955858m altitude=1.563000m altitude_error=0.007000m
+2026-08-06T02:48:27Z [navigation] target=physical zone 2 distance=1.977929m altitude=1.567000m altitude_error=0.003000m
+2026-08-06T02:48:28Z [navigation] target=physical zone 2 distance=1.318619m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:48:29Z [navigation] target=physical zone 2 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:30Z [navigation] target=physical zone 2 distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:30Z [navigation] reached physical zone 2; stable hover confirmed for 1000ms
+2026-08-06T02:48:30Z [sdk] gimbalDownSet status=0
+2026-08-06T02:48:32Z [sdk] openFramePool(PodVisibleLight) status=0
+2026-08-06T02:48:32Z [capture] PodVisibleLight saved /opt/iking/match_agent_flow_test/runs/20260806-103235/captures/flight-0004-round-0004-scene-A/answer_layout.jpg
+2026-08-06T02:48:35Z [vision] task=answer-layout attempt=1 valid=false response="INVALID"
+2026-08-06T02:48:39Z [vision] task=answer-layout attempt=2 valid=false response="INVALID"
+2026-08-06T02:48:39Z [vision] layout mismatch: qwen=INVALID oracle=A=3,B=2,C=1; simulation uses oracle
+2026-08-06T02:48:39Z [round] resolved answer layout=A=3,B=2,C=1
+2026-08-06T02:48:39Z [round] flying to physical zone 3
+2026-08-06T02:48:39Z [navigation] sending target: physical zone 3
+2026-08-06T02:48:39Z [sdk] setPosition status=0
+2026-08-06T02:48:39Z [navigation] target=physical zone 3 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:40Z [navigation] target=physical zone 3 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:41Z [navigation] target=physical zone 3 distance=0.424650m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:43Z [navigation] target=physical zone 3 distance=0.424650m altitude=1.570000m altitude_error=0.000000m
+2026-08-06T02:48:45Z [navigation] target=physical zone 3 distance=0.000000m altitude=1.568000m altitude_error=0.002000m
+2026-08-06T02:48:45Z [navigation] reached physical zone 3; stable hover confirmed for 1000ms
+2026-08-06T02:48:47Z [taskGuidance] type=guid message=ANSWER_WRONG
+2026-08-06T02:48:47Z [sdk] gripperOpen status=0
+2026-08-06T02:48:47Z [round] gripper open accepted; waiting for referee answer result
+2026-08-06T02:48:47Z [round] returning to start zone
+2026-08-06T02:48:47Z [navigation] sending target: start
+2026-08-06T02:48:47Z [sdk] setPosition status=0
+2026-08-06T02:48:47Z [navigation] target=start distance=2.547901m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:48Z [navigation] target=start distance=2.547901m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:50Z [navigation] target=start distance=2.547901m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:51Z [navigation] target=start distance=2.547901m altitude=1.573000m altitude_error=0.003000m
+2026-08-06T02:48:53Z [navigation] target=start distance=1.273950m altitude=1.567000m altitude_error=0.003000m
+2026-08-06T02:48:54Z [navigation] target=start distance=0.000000m altitude=1.570000m altitude_error=0.000000m
+2026-08-06T02:48:55Z [navigation] target=start distance=0.000000m altitude=1.569000m altitude_error=0.001000m
+2026-08-06T02:48:55Z [navigation] reached start; stable hover confirmed for 1000ms
+2026-08-06T02:48:55Z [round] start zone reached
+2026-08-06T02:48:55Z [return] reason=round completed
+2026-08-06T02:48:55Z [sdk] returnToHome status=0
+2026-08-06T02:48:55Z [mode] LANDING
+2026-08-06T02:49:33Z [taskGuidance] type=guid message=NEXT_ROUND_STARTED
+2026-08-06T02:49:36Z [mode] STANDBY
+2026-08-06T02:49:36Z [return] landing confirmed
+2026-08-06T02:49:36Z [round] flow completed and landed; resident process is waiting for NEXT_ROUND_STARTED or MATCH_STARTED
+2026-08-06T02:49:36Z [event] ignored in current resident state: EXITED_SCENE_A_TRIGGER_ZONE
+2026-08-06T02:49:36Z [event] ignored in current resident state: ANSWER_WRONG
+2026-08-06T02:49:36Z [sdk] getModeStatus(round-preflight) status=0
+2026-08-06T02:49:36Z [sdk] getPodCapability(round-preflight) status=0
+2026-08-06T02:49:36Z [round] starting flight sequence=5 round=5 scene=B
+2026-08-06T02:49:38Z [sdk] gripperClose status=0
+2026-08-06T02:49:39Z [sdk] getModeStatus status=0
+2026-08-06T02:49:39Z [sdk] takeOff(1.57m) status=0
+2026-08-06T02:49:39Z [match] takeoff accepted; waiting for POSITION
+2026-08-06T02:49:39Z [mode] TAKEOFF
+2026-08-06T02:49:48Z [taskGuidance] type=guid message=MATCH_FINISHED
+2026-08-06T02:49:49Z [match] takeoff was not confirmed
+2026-08-06T02:49:49Z [abort] round preflight, takeoff, or scene B navigation failed
+2026-08-06T02:49:49Z [return] reason=round preflight, takeoff, or scene B navigation failed
+2026-08-06T02:49:49Z [sdk] returnToHome status=0
+2026-08-06T02:49:49Z [mode] TAKEOFF
+2026-08-06T02:49:55Z [mode] POSITION
+2026-08-06T02:52:07Z [mode] LANDING
+2026-08-06T02:52:49Z [return] landing was not confirmed
+2026-08-06T02:52:49Z [abort] return-to-home was not confirmed; process stopping
+2026-08-06T02:52:49Z [return] reason=process exit
+2026-08-06T02:52:49Z [mode] LANDING
+2026-08-06T02:52:55Z [mode] STANDBY
+2026-08-06T02:52:55Z [return] landing confirmed
+2026-08-06T02:52:55Z [shutdown] disconnected

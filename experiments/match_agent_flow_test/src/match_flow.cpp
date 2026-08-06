@@ -1,7 +1,8 @@
 /**
- * 单轮裁判事件驱动的隔离仿真流程。
+ * 常驻多轮裁判事件驱动的隔离仿真流程。
  *
  * 默认 --dry-run，只记录事件。--execute 必须同时由启动脚本完成仿真预检。
+ * MATCH_STARTED 从 B 区开始新比赛；NEXT_ROUND_STARTED 在 A/B 区间交替。
  */
 
 #include <algorithm>
@@ -32,6 +33,7 @@
 #include "iking_drone_sdk.h"
 #include "flow_logic.hpp"
 #include "mission_sequence.hpp"
+#include "qwen_vision.hpp"
 #include "recognize_image.hpp"
 
 using namespace std::chrono_literals;
@@ -40,10 +42,6 @@ namespace {
 
 constexpr float kTakeoffHeight = 1.57f;
 constexpr int kRpcTimeoutMs = 5000;
-constexpr const char* kRecognizePrompt =
-    "Identify the question shown in the image. "
-    "Output ONLY the letter of the correct answer choice (A, B, or C). "
-    "No explanation.";
 
 // 题目区使用前向相机；答题区使用吊舱可见光相机。
 constexpr auto kSceneCameraChannel =
@@ -71,6 +69,12 @@ constexpr float kBLongitude = 119.71373131094664f;
 constexpr float kBAltitude = 1.57f;
 constexpr double kBArrivalToleranceMeters = 0.20;
 
+// A 触发区场地坐标为 (x=5.4 m, z=-2.97 m)。
+constexpr float kALongitude = 119.71373131094664f;
+constexpr float kALatitude = 39.077190422086844f;
+constexpr float kAAltitude = 1.57f;
+constexpr double kAArrivalToleranceMeters = 0.20;
+
 constexpr double kAnswerArrivalToleranceMeters = 0.15;
 // 物理答题区 1：(x=0, z=-3.49 m)。
 constexpr float kAnswerALongitude = 119.71366882324219f;
@@ -87,14 +91,8 @@ constexpr float kAnswerCLongitude = 119.71366882324219f;
 constexpr float kAnswerCLatitude = 39.077195093326317f;
 constexpr float kAnswerCAltitude = 1.57f;
 
-// 启动区：(x=0, z=0)。返回到 1.57 m 后调用 returnToHome 降落。
-constexpr float kStartLatitude = 39.07721710205078f;
-constexpr float kStartLongitude = 119.71366882324219f;
-constexpr float kStartAltitude = 1.57f;
-constexpr double kStartArrivalToleranceMeters = 0.20;
-
 constexpr auto kArrivalStableDuration = 1s;
-constexpr auto kSceneBStableDuration = 3s;
+constexpr auto kSceneStableDuration = 3s;
 constexpr auto kNavigationTimeout = 60s;
 constexpr auto kAnswerResultTimeout = 5s;
 constexpr double kEarthRadiusMeters = 6378137.0;
@@ -111,6 +109,12 @@ struct PositionSnapshot {
     double longitude = 0.0;
     double altitude = 0.0;
     std::chrono::steady_clock::time_point updated_at{};
+};
+
+enum class AnswerResult {
+    Pending,
+    Correct,
+    Wrong,
 };
 
 struct TelemetryStore {
@@ -154,7 +158,7 @@ private:
 
 std::atomic<bool> g_stop{false};
 std::atomic<bool> g_urgent_return{false};
-std::atomic<bool> g_answer_result_received{false};
+std::atomic<AnswerResult> g_answer_result{AnswerResult::Pending};
 std::mutex g_print_mutex;
 std::mutex g_artifact_mutex;
 EventQueue g_events;
@@ -292,18 +296,13 @@ bool capturePhotoWithPool(iking::drone::Client& client,
 }
 
 bool captureScenePhotoFromSdk(iking::drone::Client& client,
-                              const std::string& scene) {
-    const std::string path =
-        g_capture_directory + "/scene_" + scene + ".jpg";
-
+                              const std::string& path) {
     return capturePhotoWithPool(
         client, kSceneCameraChannel, path, "Front");
 }
 
-bool captureAnswerLayoutPhotoFromSdk(iking::drone::Client& client) {
-    const std::string path =
-        g_capture_directory + "/answer_layout.jpg";
-
+bool captureAnswerLayoutPhotoFromSdk(iking::drone::Client& client,
+                                     const std::string& path) {
     return capturePhotoWithPool(
         client, kAnswerCameraChannel, path, "PodVisibleLight");
 }
@@ -360,6 +359,17 @@ const char* modeName(iking::drone::DRONE_MODE_STATUS_t mode) {
     }
 }
 
+flow::ReturnMode returnModeFromSdk(iking::drone::DRONE_MODE_STATUS_t mode) {
+    switch (mode) {
+        case iking::drone::STANDBY: return flow::ReturnMode::Standby;
+        case iking::drone::LANDING: return flow::ReturnMode::Landing;
+        case iking::drone::POSITION: return flow::ReturnMode::Position;
+        case iking::drone::MISSION: return flow::ReturnMode::Mission;
+        case iking::drone::TAKEOFF: return flow::ReturnMode::Takeoff;
+        default: return flow::ReturnMode::Unknown;
+    }
+}
+
 bool isUrgent(const std::string& message) {
     return message == "MATCH_FINISHED" ||
            message == "SAFETY_LINE_VIOLATION";
@@ -397,9 +407,10 @@ void onEvent(const std::string& json, void*) {
 
     const bool urgent = isUrgent(event.message);
     if (urgent) g_urgent_return.store(true);
-    if (event.message == "ANSWER_CORRECT" ||
-        event.message == "ANSWER_WRONG") {
-        g_answer_result_received.store(true);
+    if (event.message == "ANSWER_CORRECT") {
+        g_answer_result.store(AnswerResult::Correct);
+    } else if (event.message == "ANSWER_WRONG") {
+        g_answer_result.store(AnswerResult::Wrong);
     }
 
     print("[taskGuidance] type=" + event.type +
@@ -602,20 +613,18 @@ bool flyToBAndHover(iking::drone::Client& client) {
                          kBAltitude,
                          kMatchYaw,
                          kBArrivalToleranceMeters,
-                         kSceneBStableDuration);
+                         kSceneStableDuration);
 }
 
-// Build the recognition prompt from the referee question message.
-// The message contains the question text plus A/B/C choices; the model
-// must read the image and output ONLY the matching letter.
-std::string buildRecognizePrompt(const std::string& question) {
-    if (question.empty()) return std::string(kRecognizePrompt);
-    return std::string(
-        "A referee question with A/B/C choices is given below. "
-        "Look at the image, determine the correct choice, "
-        "and output ONLY the letter (A, B, or C) of the correct answer. "
-        "No explanation. If the answer is uncertain, output INVALID.\n\nQuestion: ") +
-        question;
+bool flyToAAndHover(iking::drone::Client& client) {
+    return flyToAndHover(client,
+                         "scene A",
+                         kALongitude,
+                         kALatitude,
+                         kAAltitude,
+                         kMatchYaw,
+                         kAArrivalToleranceMeters,
+                         kSceneStableDuration);
 }
 
 bool flyToAnswerZone(iking::drone::Client& client,
@@ -649,14 +658,17 @@ bool flyToAnswerZone(iking::drone::Client& client,
     return false;
 }
 
-bool waitForAnswerResult() {
+AnswerResult waitForAnswerResult() {
     const auto deadline = std::chrono::steady_clock::now() + kAnswerResultTimeout;
     while (std::chrono::steady_clock::now() < deadline) {
-        if (g_stop.load() || g_urgent_return.load()) return false;
-        if (g_answer_result_received.load()) return true;
+        if (g_stop.load() || g_urgent_return.load()) {
+            return AnswerResult::Pending;
+        }
+        const AnswerResult result = g_answer_result.load();
+        if (result != AnswerResult::Pending) return result;
         std::this_thread::sleep_for(100ms);
     }
-    return false;
+    return AnswerResult::Pending;
 }
 
 bool setAnswerCameraPoseFromSdk(iking::drone::Client& client) {
@@ -686,33 +698,135 @@ bool returnHomeWithSdk(iking::drone::Client& client,
                        const std::string& reason) {
     print("[return] reason=" + reason);
 
-    iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
-    const auto mode_result = client.getModeStatus(mode, 2000);
-    if (iking::drone::isOk(mode_result.status) &&
-        mode == iking::drone::STANDBY) {
-        g_urgent_return.store(false);
-        print("[return] already STANDBY");
-        return true;
-    }
+    constexpr auto kReturnTimeout = 180s;
+    constexpr auto kReturnRetryDelay = 10s;
+    const auto deadline = std::chrono::steady_clock::now() + kReturnTimeout;
+    auto next_return_command = std::chrono::steady_clock::time_point{};
+    int failed_mode_queries = 0;
+    int failed_return_commands = 0;
+    int previous_mode = -1;
+    bool reported_takeoff_wait = false;
 
-    if (!(iking::drone::isOk(mode_result.status) &&
-          mode == iking::drone::LANDING)) {
-        if (!isOk(client.returnToHome(kRpcTimeoutMs), "returnToHome")) {
-            return false;
+    while (std::chrono::steady_clock::now() < deadline) {
+        iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
+        const auto mode_result = client.getModeStatus(mode, 2000);
+        if (!iking::drone::isOk(mode_result.status)) {
+            if (++failed_mode_queries >= 3) {
+                print("[return] three consecutive mode queries failed");
+                return false;
+            }
+            std::this_thread::sleep_for(500ms);
+            continue;
         }
+        failed_mode_queries = 0;
+
+        if (static_cast<int>(mode) != previous_mode) {
+            print(std::string("[return] mode=") + modeName(mode));
+            previous_mode = static_cast<int>(mode);
+        }
+
+        const flow::ReturnAction action =
+            flow::returnActionForMode(returnModeFromSdk(mode));
+        if (action == flow::ReturnAction::Complete) {
+            g_urgent_return.store(false);
+            print("[return] landing confirmed");
+            return true;
+        }
+
+        if (mode == iking::drone::TAKEOFF && !reported_takeoff_wait) {
+            print("[return] waiting for TAKEOFF to reach a return-capable mode");
+            reported_takeoff_wait = true;
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (action == flow::ReturnAction::SendCommand &&
+            now >= next_return_command) {
+            if (!isOk(client.returnToHome(kRpcTimeoutMs), "returnToHome")) {
+                if (++failed_return_commands >= 3) {
+                    print("[return] returnToHome failed three times");
+                    return false;
+                }
+            } else {
+                failed_return_commands = 0;
+            }
+            next_return_command = now + kReturnRetryDelay;
+        }
+
+        std::this_thread::sleep_for(500ms);
     }
 
-    g_urgent_return.store(false);
-    const bool landed = waitForMode(
-        client, iking::drone::STANDBY, 180s, false);
-    print(landed ? "[return] landing confirmed" :
-                   "[return] landing was not confirmed");
-    return landed;
+    print("[return] landing was not confirmed within 180 seconds");
+    return false;
 }
 
 class SdkActions {
 public:
-    explicit SdkActions(iking::drone::Client& client) : client_(client) {}
+    explicit SdkActions(iking::drone::Client& client)
+        : client_(client),
+          vision_(
+              [](const std::string& image,
+                 const std::string& prompt,
+                 int timeout_ms) {
+                  return recognize::recognizeImage(
+                      image, prompt, timeout_ms);
+              },
+              [](const std::string& line) { print(line); },
+              [] {
+                  const char* simulation =
+                      std::getenv("IKING_SIMULATION_CONFIRMED");
+                  const char* allow_oracle =
+                      std::getenv("IKING_ALLOW_SIM_ORACLE");
+                  return simulation && std::string(simulation) == "1" &&
+                         allow_oracle && std::string(allow_oracle) == "1";
+              }()) {}
+
+    bool beginRound(int round_index, flow::SceneZone scene) {
+        iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
+        if (!isOk(client_.getModeStatus(mode, 2000),
+                  "getModeStatus(round-preflight)") ||
+            mode != iking::drone::STANDBY) {
+            print("[round] preflight requires STANDBY");
+            return false;
+        }
+
+        const auto capability = client_.getPodCapability();
+        if (!isOk(capability, "getPodCapability(round-preflight)") ||
+            !(hasCameraType(capability.msg, "imx586") ||
+              hasCameraType(capability.msg, "fisheye")) ||
+            !hasCameraType(capability.msg, "light")) {
+            print("[round] preflight requires Front and PodVisibleLight");
+            return false;
+        }
+
+        ++flight_sequence_;
+        current_scene_ = scene;
+        current_question_.clear();
+        gripper_open_attempted_ = false;
+        g_answer_result.store(AnswerResult::Pending);
+
+        std::ostringstream directory_name;
+        directory_name << "/flight-" << std::setw(4) << std::setfill('0')
+                       << flight_sequence_ << "-round-" << std::setw(4)
+                       << round_index << "-scene-" << flow::sceneName(scene);
+        round_capture_directory_ =
+            g_capture_directory + directory_name.str();
+        std::error_code error;
+        std::filesystem::create_directories(round_capture_directory_, error);
+        if (error) {
+            print("[round] cannot create capture directory: " +
+                  error.message());
+            return false;
+        }
+        scene_photo_path_ = round_capture_directory_ + "/scene_" +
+                            flow::sceneName(scene) + ".jpg";
+        answer_layout_photo_path_ =
+            round_capture_directory_ + "/answer_layout.jpg";
+        print("[round] starting flight sequence=" +
+              std::to_string(flight_sequence_) + " round=" +
+              std::to_string(round_index) + " scene=" +
+              flow::sceneName(scene));
+        return !g_stop.load() && !g_urgent_return.load();
+    }
 
     bool closeGripper() {
         if (!acceptSimulationPodFailure(
@@ -725,44 +839,25 @@ public:
     }
 
     bool takeOff() { return takeOffAfterGripperClosed(client_); }
-    bool flyToSceneB() { return flyToBAndHover(client_); }
+    bool flyToScene(flow::SceneZone scene) {
+        return scene == flow::SceneZone::A
+                   ? flyToAAndHover(client_)
+                   : flyToBAndHover(client_);
+    }
 
     bool captureScenePhoto() {
         std::this_thread::sleep_for(500ms);
         return !g_stop.load() && !g_urgent_return.load() &&
-               captureScenePhotoFromSdk(client_, "B");
+               captureScenePhotoFromSdk(client_, scene_photo_path_);
     }
 
     std::optional<flow::Answer> recognizeAnswer(
         const std::string& question) {
-        const std::string photo_path = g_capture_directory + "/scene_B.jpg";
-        const std::string prompt = buildRecognizePrompt(question);
-        for (int attempt = 1; attempt <= 2; ++attempt) {
-            const std::string recognized = recognize::recognizeImage(
-                photo_path, prompt, 30000);
-            if (g_stop.load() || g_urgent_return.load()) return std::nullopt;
-
-            const auto answer = flow::parseAnswerToken(recognized);
-            print("[recognize] attempt=" + std::to_string(attempt) +
-                  " valid=" + (answer ? "true" : "false") +
-                  " response=" + Json::valueToQuotedString(
-                      recognized.substr(0, 80).c_str()));
-            if (answer) return answer;
-            if (attempt < 2) std::this_thread::sleep_for(2s);
-        }
-
-        const char* simulation = std::getenv("IKING_SIMULATION_CONFIRMED");
-        const char* allow_oracle = std::getenv("IKING_ALLOW_SIM_ORACLE");
-        if (simulation && std::string(simulation) == "1" &&
-            allow_oracle && std::string(allow_oracle) == "1") {
-            const auto oracle = flow::parseSimulationOracleExpected(question);
-            if (oracle) {
-                print(std::string("[simulation] vision failed; using explicit ") +
-                      "SIM_ORACLE expected=" + flow::answerName(*oracle));
-                return oracle;
-            }
-        }
-        return std::nullopt;
+        current_question_ = question;
+        const auto answer =
+            vision_.recognizeSemanticAnswer(scene_photo_path_, question);
+        if (g_stop.load() || g_urgent_return.load()) return std::nullopt;
+        return answer;
     }
 
     bool flyToZone(flow::PhysicalZone zone) {
@@ -777,9 +872,34 @@ public:
     }
 
     bool captureAnswerLayoutPhoto() {
-        const bool saved = captureAnswerLayoutPhotoFromSdk(client_);
+        const bool saved = captureAnswerLayoutPhotoFromSdk(
+            client_, answer_layout_photo_path_);
         if (!saved) print("[round] answer layout capture failed; drop cancelled");
         return saved;
+    }
+
+    std::optional<flow::AnswerLayout> recognizeAnswerLayout() {
+        const auto layout =
+            vision_.recognizeAnswerLayout(
+                answer_layout_photo_path_, current_question_);
+        if (g_stop.load() || g_urgent_return.load()) return std::nullopt;
+        if (layout) {
+            print("[round] resolved answer layout=" +
+                  flow::answerLayoutName(*layout));
+        }
+        return layout;
+    }
+
+    bool restoreGripperClosedForDrop() {
+        print("[round] restoring closed gripper state after gimbal capture");
+        if (!acceptSimulationPodFailure(
+                isOk(client_.gripperClose(kRpcTimeoutMs),
+                     "gripperClose(drop)"),
+                "gripperClose(drop)")) {
+            return false;
+        }
+        std::this_thread::sleep_for(1s);
+        return !g_stop.load() && !g_urgent_return.load();
     }
 
     bool openGripperOnce() {
@@ -788,30 +908,22 @@ public:
             return false;
         }
         gripper_open_attempted_ = true;
-        g_answer_result_received.store(false);
+        g_answer_result.store(AnswerResult::Pending);
         if (!acceptSimulationPodFailure(
                 isOk(client_.gripperOpen(kRpcTimeoutMs), "gripperOpen"),
                 "gripperOpen")) {
             return false;
         }
         print("[round] gripper open accepted; waiting for referee answer result");
-        if (!waitForAnswerResult()) {
+        const AnswerResult result = waitForAnswerResult();
+        if (result == AnswerResult::Pending) {
             print("[round] answer result was not received within 5 seconds");
+            return false;
         }
+        print(result == AnswerResult::Correct
+                  ? "[round] referee result=CORRECT"
+                  : "[round] referee result=WRONG");
         return !g_stop.load() && !g_urgent_return.load();
-    }
-
-    bool returnToStart() {
-        print("[round] returning to start zone");
-        const bool returned = flyToAndHover(client_,
-                                            "start",
-                                            kStartLongitude,
-                                            kStartLatitude,
-                                            kStartAltitude,
-                                            kMatchYaw,
-                                            kStartArrivalToleranceMeters);
-        if (returned) print("[round] start zone reached");
-        return returned;
     }
 
     bool returnHome(const std::string& reason) {
@@ -820,6 +932,13 @@ public:
 
 private:
     iking::drone::Client& client_;
+    vision::QwenVision vision_;
+    int flight_sequence_ = 0;
+    flow::SceneZone current_scene_ = flow::SceneZone::B;
+    std::string current_question_;
+    std::string round_capture_directory_;
+    std::string scene_photo_path_;
+    std::string answer_layout_photo_path_;
     bool gripper_open_attempted_ = false;
 };
 
@@ -845,28 +964,41 @@ flow::EventKind classifyEvent(const RefereeEvent& event) {
 
 void eventLoop(iking::drone::Client& client, bool execute) {
     std::unordered_set<std::string> handled_ids;
-    flow::SingleRoundStateMachine state;
+    std::deque<std::string> handled_order;
+    constexpr size_t kMaximumRememberedRequestIds = 4096;
+    flow::ResidentMatchStateMachine state;
     SdkActions actions(client);
-    flow::SingleRoundMission<SdkActions> mission(actions);
+    flow::RoundMission<SdkActions> mission(actions);
     RefereeEvent event;
     std::optional<std::string> cached_question;
 
-    auto abort_and_return = [&](const std::string& reason) {
+    auto abort_current_match = [&](const std::string& reason) {
         state.markReturning();
         print("[abort] " + reason);
         const bool landed = mission.emergencyReturn(reason);
-        if (landed) state.markAborted();
-        else print("[abort] return-to-home was not confirmed");
-        g_stop.store(true);
+        cached_question.reset();
+        if (landed) {
+            state.markReady();
+            print("[resident] current match aborted; waiting for MATCH_STARTED");
+        } else {
+            print("[abort] return-to-home was not confirmed; process stopping");
+            g_stop.store(true);
+        }
     };
 
     while (g_events.pop(event)) {
         if (g_stop.load()) break;
 
-        if (!event.request_id.empty() &&
-            !handled_ids.insert(event.request_id).second) {
-            print("[event] duplicate ignored: " + event.request_id);
-            continue;
+        if (!event.request_id.empty()) {
+            if (!handled_ids.insert(event.request_id).second) {
+                print("[event] duplicate ignored: " + event.request_id);
+                continue;
+            }
+            handled_order.push_back(event.request_id);
+            if (handled_order.size() > kMaximumRememberedRequestIds) {
+                handled_ids.erase(handled_order.front());
+                handled_order.pop_front();
+            }
         }
 
         if (!execute) {
@@ -876,23 +1008,38 @@ void eventLoop(iking::drone::Client& client, bool execute) {
 
         const flow::EventAction action = state.handle(classifyEvent(event));
         if (action == flow::EventAction::Ignore) {
-            print("[event] ignored in current single-round state: " +
+            print("[event] ignored in current resident state: " +
                   event.message);
             continue;
         }
 
-        if (action == flow::EventAction::EmergencyReturn) {
-            abort_and_return(event.message);
-            break;
+        if (action == flow::EventAction::EndMatch) {
+            cached_question.reset();
+            g_urgent_return.store(false);
+            print("[resident] match ended on ground; waiting for MATCH_STARTED");
+            continue;
         }
 
-        if (action == flow::EventAction::StartMission) {
-            if (!mission.start()) {
-                abort_and_return("takeoff or scene B navigation failed");
-                break;
+        if (action == flow::EventAction::EmergencyReturn) {
+            abort_current_match(event.message);
+            if (g_stop.load()) break;
+            continue;
+        }
+
+        if (action == flow::EventAction::StartRound) {
+            cached_question.reset();
+            const int round_index = state.roundIndex();
+            const flow::SceneZone scene = state.currentScene();
+            if (!mission.start(round_index, scene)) {
+                abort_current_match(
+                    std::string("round preflight, takeoff, or scene ") +
+                    flow::sceneName(scene) + " navigation failed");
+                if (g_stop.load()) break;
+                continue;
             }
             state.markSceneReady();
-            print("[round] scene B reached; waiting for trigger");
+            print(std::string("[round] scene ") + flow::sceneName(scene) +
+                  " reached; waiting for trigger");
             continue;
         }
 
@@ -915,33 +1062,38 @@ void eventLoop(iking::drone::Client& client, bool execute) {
                     : event.message;
             cached_question.reset();
             if (question.empty()) {
-                abort_and_return("cached question was missing");
-                break;
+                abort_current_match("cached question was missing");
+                if (g_stop.load()) break;
+                continue;
             }
 
             print("[match] question received: " + question);
-            const auto target_zone = mission.observeQuestion(question);
-            if (!target_zone) {
-                abort_and_return("recognition failed or returned an invalid token");
-                break;
+            const auto semantic_answer = mission.observeQuestion(question);
+            if (!semantic_answer) {
+                abort_current_match(
+                    "recognition failed or returned an invalid token");
+                if (g_stop.load()) break;
+                continue;
             }
             if (g_urgent_return.load()) {
-                abort_and_return("urgent return requested during recognition");
-                break;
+                abort_current_match("urgent return requested during recognition");
+                if (g_stop.load()) break;
+                continue;
             }
 
-            print(std::string("[round] recognized target=") +
-                  flow::zoneName(*target_zone));
+            print(std::string("[round] recognized semantic answer=") +
+                  flow::answerName(*semantic_answer));
 
-            if (!mission.deliverAndLand(*target_zone)) {
-                abort_and_return("answer execution or return-to-start failed");
-                break;
+            if (!mission.deliverAndLand(*semantic_answer)) {
+                abort_current_match(
+                    "layout recognition, answer execution, or return failed");
+                if (g_stop.load()) break;
+                continue;
             }
 
-            state.markCompleted();
-            print("[round] single-round flow completed and landed");
-            g_stop.store(true);
-            break;
+            state.markRoundCompleted();
+            print("[round] flow completed and landed; resident process is "
+                  "waiting for NEXT_ROUND_STARTED or MATCH_STARTED");
         }
     }
 }
@@ -969,6 +1121,19 @@ bool validRunId(const std::string& value) {
     return std::all_of(value.begin(), value.end(), [](unsigned char ch) {
         return std::isalnum(ch) || ch == '-' || ch == '_';
     });
+}
+
+bool visionCredentialsAvailable() {
+    const char* vision_key = std::getenv("VISION_API_KEY");
+    const char* dashscope_key = std::getenv("DASHSCOPE_API_KEY");
+    const char* key_file = std::getenv("VISION_API_KEY_FILE");
+    const bool vision_credentials =
+        (vision_key && *vision_key) ||
+        (key_file && *key_file && std::filesystem::is_regular_file(key_file));
+    const bool provider_override =
+        std::getenv("VISION_API_URL") || std::getenv("VISION_MODEL");
+    if (provider_override) return vision_credentials;
+    return vision_credentials || (dashscope_key && *dashscope_key);
 }
 
 std::string defaultRunId() {
@@ -1012,7 +1177,22 @@ bool initializeArtifacts(const Options& options) {
     metadata["mode"] = options.execute ? "execute" : "dry-run";
     metadata["baseline_match_sha256"] = kBaselineMatchSha256;
     metadata["baseline_recognize_sha256"] = kBaselineRecognizeSha256;
-    metadata["fixed_mapping"] = "A->zone1,B->zone2,C->zone3";
+    const char* vision_url = std::getenv("VISION_API_URL");
+    const char* vision_model = std::getenv("VISION_MODEL");
+    metadata["vision_api_url"] =
+        (vision_url && *vision_url)
+            ? vision_url
+            : recognize::kDefaultApiUrl;
+    metadata["vision_model"] =
+        (vision_model && *vision_model)
+            ? vision_model
+            : recognize::kDefaultModelName;
+    metadata["mapping_mode"] = "semantic-answer-plus-recognized-layout";
+    metadata["resident_process"] = true;
+    metadata["scene_schedule"] = "MATCH_STARTED:B;NEXT_ROUND_STARTED:A/B alternating";
+    const char* simulation_oracle = std::getenv("IKING_ALLOW_SIM_ORACLE");
+    metadata["simulation_oracle_enabled"] =
+        simulation_oracle && std::string(simulation_oracle) == "1";
     metadata["started_at"] = utcTimestamp();
     Json::StreamWriterBuilder builder;
     builder["indentation"] = "  ";
@@ -1026,7 +1206,7 @@ void printUsage(const char* program) {
         << "usage: " << program
         << " [--dry-run | --execute] [--run-id ID] [--run-root PATH]\n"
         << "  --dry-run       listen and record only (default)\n"
-        << "  --execute       enable the single-round simulation flow\n"
+        << "  --execute       enable the resident multi-round simulation flow\n"
         << "  --run-id ID     unique artifact directory name\n"
         << "  --run-root PATH artifact root directory\n";
 }
@@ -1064,9 +1244,8 @@ int main(int argc, char** argv) {
                          "IKING_SIMULATION_CONFIRMED=1" << std::endl;
             return 2;
         }
-        const char* api_key = std::getenv("DASHSCOPE_API_KEY");
-        if (!api_key || !*api_key) {
-            std::cerr << "[startup] --execute requires DASHSCOPE_API_KEY"
+        if (!visionCredentialsAvailable()) {
+            std::cerr << "[startup] --execute requires vision credentials"
                       << std::endl;
             return 2;
         }

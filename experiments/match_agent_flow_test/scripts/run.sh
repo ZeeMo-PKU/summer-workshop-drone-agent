@@ -47,12 +47,23 @@ if [[ "$mode" == "execute" ]]; then
     fi
     # shellcheck disable=SC1091
     source "$root_dir/.secrets.env"
+    if [[ -r "$root_dir/.vision.env" ]]; then
+        # shellcheck disable=SC1091
+        source "$root_dir/.vision.env"
+    fi
     if [[ "${IKING_SIMULATION_CONFIRMED:-}" != "1" ]]; then
         echo "[launcher] simulation has not been explicitly confirmed" >&2
         exit 6
     fi
-    if [[ -z "${DASHSCOPE_API_KEY:-}" ]]; then
-        echo "[launcher] DASHSCOPE_API_KEY is not configured" >&2
+    if [[ -n "${VISION_API_URL:-}${VISION_MODEL:-}" ]]; then
+        if [[ -z "${VISION_API_KEY:-}" &&
+              ! -r "${VISION_API_KEY_FILE:-/nonexistent}" ]]; then
+            echo "[launcher] configured vision provider has no credentials" >&2
+            exit 7
+        fi
+    elif [[ -z "${VISION_API_KEY:-${DASHSCOPE_API_KEY:-}}" &&
+            ! -r "${VISION_API_KEY_FILE:-/nonexistent}" ]]; then
+        echo "[launcher] VISION_API_KEY is not configured" >&2
         exit 7
     fi
     if [[ ! -r "$gimbal_verification_file" ]]; then
@@ -123,6 +134,8 @@ if [[ -d "$run_dir" ]]; then
     sha256sum \
         "$root_dir/src/match_flow.cpp" \
         "$root_dir/src/flow_logic.hpp" \
+        "$root_dir/src/mission_sequence.hpp" \
+        "$root_dir/src/qwen_vision.hpp" \
         "$root_dir/src/recognize_image.hpp" \
         "$binary" > "$run_dir/source-binary.sha256"
     (

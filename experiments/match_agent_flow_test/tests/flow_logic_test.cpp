@@ -23,26 +23,84 @@ int main() {
     assert(!parseSimulationOracleExpected("[SIM_ORACLE expected=AB]"));
     assert(!parseSimulationOracleExpected("[SIM_ORACLE expected=D]"));
 
-    assert(fixedZoneForAnswer(Answer::A) == PhysicalZone::Zone1);
-    assert(fixedZoneForAnswer(Answer::B) == PhysicalZone::Zone2);
-    assert(fixedZoneForAnswer(Answer::C) == PhysicalZone::Zone3);
+    const auto identity = parseAnswerLayoutToken("A=1,B=2,C=3");
+    assert(identity);
+    assert(zoneForAnswer(*identity, Answer::A) == PhysicalZone::Zone1);
+    assert(zoneForAnswer(*identity, Answer::B) == PhysicalZone::Zone2);
+    assert(zoneForAnswer(*identity, Answer::C) == PhysicalZone::Zone3);
+    assert(answerLayoutName(*identity) == "A=1,B=2,C=3");
 
-    SingleRoundStateMachine state;
+    const auto shuffled = parseAnswerLayoutToken(" C=1, A=3, B=2\n");
+    assert(shuffled);
+    assert(zoneForAnswer(*shuffled, Answer::A) == PhysicalZone::Zone3);
+    assert(zoneForAnswer(*shuffled, Answer::B) == PhysicalZone::Zone2);
+    assert(zoneForAnswer(*shuffled, Answer::C) == PhysicalZone::Zone1);
+    assert(!parseAnswerLayoutToken("A=1,B=1,C=3"));
+    assert(!parseAnswerLayoutToken("A=1,B=2"));
+    assert(!parseAnswerLayoutToken("A=1,B=2,C=4"));
+    assert(!parseAnswerLayoutToken("A=1,B=2,C=3,INVALID"));
+
+    const auto oracle_layout = parseSimulationOracleLayout(
+        "question [SIM_ORACLE expected=A slotA=B slotB=A slotC=C]");
+    assert(oracle_layout);
+    assert(answerLayoutName(*oracle_layout) == "A=2,B=1,C=3");
+    assert(!parseSimulationOracleLayout(
+        "[SIM_ORACLE expected=A slotA=A slotB=A slotC=C]"));
+
+    assert(returnActionForMode(ReturnMode::Standby) ==
+           ReturnAction::Complete);
+    assert(returnActionForMode(ReturnMode::Landing) == ReturnAction::Wait);
+    assert(returnActionForMode(ReturnMode::Takeoff) == ReturnAction::Wait);
+    assert(returnActionForMode(ReturnMode::Unknown) == ReturnAction::Wait);
+    assert(returnActionForMode(ReturnMode::Position) ==
+           ReturnAction::SendCommand);
+    assert(returnActionForMode(ReturnMode::Mission) ==
+           ReturnAction::SendCommand);
+
+    ResidentMatchStateMachine state;
+    assert(state.phase() == Phase::Ready);
+    assert(state.handle(EventKind::NextRoundStarted) == EventAction::Ignore);
     assert(state.handle(EventKind::Question) == EventAction::Ignore);
-    assert(state.handle(EventKind::MatchStarted) == EventAction::StartMission);
+    assert(state.handle(EventKind::MatchStarted) == EventAction::StartRound);
+    assert(state.roundIndex() == 1);
+    assert(state.currentScene() == SceneZone::B);
+    assert(state.matchActive());
     assert(state.handle(EventKind::MatchStarted) == EventAction::Ignore);
     state.markSceneReady();
     assert(state.handle(EventKind::SceneTriggerSucceeded) ==
            EventAction::AwaitQuestion);
     assert(state.handle(EventKind::SceneTriggerSucceeded) == EventAction::Ignore);
     assert(state.handle(EventKind::Question) == EventAction::ExecuteAnswer);
-    state.markReturning();
-    state.markCompleted();
-    assert(state.handle(EventKind::MatchFinished) == EventAction::Ignore);
+    state.markRoundCompleted();
 
-    SingleRoundStateMachine reordered;
+    assert(state.handle(EventKind::NextRoundStarted) == EventAction::StartRound);
+    assert(state.roundIndex() == 2);
+    assert(state.currentScene() == SceneZone::A);
+    assert(state.handle(EventKind::NextRoundStarted) == EventAction::Ignore);
+    state.markSceneReady();
+    assert(state.handle(EventKind::SceneTriggerSucceeded) ==
+           EventAction::AwaitQuestion);
+    assert(state.handle(EventKind::Question) == EventAction::ExecuteAnswer);
+    state.markRoundCompleted();
+
+    assert(state.handle(EventKind::NextRoundStarted) == EventAction::StartRound);
+    assert(state.roundIndex() == 3);
+    assert(state.currentScene() == SceneZone::B);
+    state.markRoundCompleted();
+
+    // A new MATCH_STARTED always begins a new match at round 1 / scene B.
+    assert(state.handle(EventKind::MatchStarted) == EventAction::StartRound);
+    assert(state.roundIndex() == 1);
+    assert(state.currentScene() == SceneZone::B);
+    state.markRoundCompleted();
+    assert(state.handle(EventKind::MatchFinished) == EventAction::EndMatch);
+    assert(state.phase() == Phase::Ready);
+    assert(!state.matchActive());
+    assert(state.handle(EventKind::MatchStarted) == EventAction::StartRound);
+
+    ResidentMatchStateMachine reordered;
     assert(reordered.handle(EventKind::MatchStarted) ==
-           EventAction::StartMission);
+           EventAction::StartRound);
     reordered.markSceneReady();
     assert(reordered.handle(EventKind::Question) ==
            EventAction::CacheQuestion);
@@ -50,12 +108,20 @@ int main() {
     assert(reordered.handle(EventKind::SceneTriggerSucceeded) ==
            EventAction::ExecuteCachedQuestion);
     assert(reordered.handle(EventKind::Question) == EventAction::Ignore);
+    reordered.markRoundCompleted();
+    assert(reordered.handle(EventKind::NextRoundStarted) ==
+           EventAction::StartRound);
+    reordered.markSceneReady();
+    assert(reordered.handle(EventKind::SceneTriggerSucceeded) ==
+           EventAction::AwaitQuestion);
 
-    SingleRoundStateMachine emergency;
-    assert(emergency.handle(EventKind::MatchStarted) == EventAction::StartMission);
+    ResidentMatchStateMachine emergency;
+    assert(emergency.handle(EventKind::MatchStarted) == EventAction::StartRound);
     assert(emergency.handle(EventKind::SafetyLineViolation) ==
            EventAction::EmergencyReturn);
-    emergency.markAborted();
+    emergency.markReady();
+    assert(emergency.handle(EventKind::NextRoundStarted) == EventAction::Ignore);
+    assert(emergency.handle(EventKind::MatchStarted) == EventAction::StartRound);
 
     std::cout << "flow_logic_test: PASS\n";
     return 0;

@@ -7,37 +7,39 @@
 
 namespace flow {
 
-// High-level mission sequencing is SDK-independent so a fake action layer can
-// verify order, failure handling, and the single gripper-open invariant.
+// One round starts and ends on the ground. The process can reuse this mission
+// for every referee round while a separate state machine remains resident.
 template <typename Actions>
-class SingleRoundMission {
+class RoundMission {
 public:
-    explicit SingleRoundMission(Actions& actions) : actions_(actions) {}
+    explicit RoundMission(Actions& actions) : actions_(actions) {}
 
-    bool start() {
-        return actions_.closeGripper() &&
+    bool start(int round_index, SceneZone scene) {
+        return actions_.beginRound(round_index, scene) &&
+               actions_.closeGripper() &&
                actions_.takeOff() &&
-               actions_.flyToSceneB();
+               actions_.flyToScene(scene);
     }
 
-    std::optional<PhysicalZone> observeQuestion(
+    std::optional<Answer> observeQuestion(
         const std::string& question) {
         if (!actions_.captureScenePhoto()) return std::nullopt;
-        const auto answer = actions_.recognizeAnswer(question);
-        if (!answer) return std::nullopt;
-        return fixedZoneForAnswer(*answer);
+        return actions_.recognizeAnswer(question);
     }
 
-    bool deliverAndLand(PhysicalZone target) {
+    bool deliverAndLand(Answer answer) {
         if (!actions_.flyToZone(PhysicalZone::Zone2)) return false;
         if (!actions_.setAnswerCameraPose()) return false;
         if (!actions_.captureAnswerLayoutPhoto()) return false;
+        const auto layout = actions_.recognizeAnswerLayout();
+        if (!layout) return false;
+        if (!actions_.restoreGripperClosedForDrop()) return false;
+        const PhysicalZone target = zoneForAnswer(*layout, answer);
         if (target != PhysicalZone::Zone2 && !actions_.flyToZone(target)) {
             return false;
         }
         if (!actions_.openGripperOnce()) return false;
-        if (!actions_.returnToStart()) return false;
-        return actions_.returnHome("single round completed");
+        return actions_.returnHome("round completed");
     }
 
     bool emergencyReturn(const std::string& reason) {

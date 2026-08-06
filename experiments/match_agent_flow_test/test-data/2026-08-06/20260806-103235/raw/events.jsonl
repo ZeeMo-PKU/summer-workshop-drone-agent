@@ -1,0 +1,27 @@
+{"message":"MATCH_FINISHED","recorded_at":"2026-08-06T02:40:18Z","request_id":"0005100e-b00b-400c-800b-000200070001","type":"guid"}
+{"message":"MATCH_STARTED","recorded_at":"2026-08-06T02:41:49Z","request_id":"00030007-d004-4007-8001-00080004000c","type":"guid"}
+{"message":"ENTERED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-06T02:42:18Z","request_id":"0003f00f-6001-4003-800a-000d000f0009","type":"guid"}
+{"message":"图中车辆的车牌号码是什么？ A. 皖AHF220 B. 皖CHF220 C. 皖AHJ220 [SIM_ORACLE question=REAL-4-01 expected=A slotA=A slotB=B slotC=C]","recorded_at":"2026-08-06T02:42:21Z","request_id":"000c3009-500d-4008-800f-00080007000f","type":"question"}
+{"message":"SCENE_TRIGGER_SUCCEEDED","recorded_at":"2026-08-06T02:42:21Z","request_id":"0001f00c-7008-4002-8002-0002000b0008","type":"guid"}
+{"message":"EXITED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-06T02:42:32Z","request_id":"0006400d-300f-4003-8008-000c000b0002","type":"guid"}
+{"message":"ANSWER_WRONG","recorded_at":"2026-08-06T02:42:57Z","request_id":"00075000-300f-400a-8003-00050006000a","type":"guid"}
+{"message":"NEXT_ROUND_STARTED","recorded_at":"2026-08-06T02:43:46Z","request_id":"000b3003-7004-4004-8000-000000060007","type":"guid"}
+{"message":"ENTERED_SCENE_A_TRIGGER_ZONE","recorded_at":"2026-08-06T02:44:18Z","request_id":"00036005-500d-400b-8004-000b000a000f","type":"guid"}
+{"message":"图中共有多少架飞机？ A. 1 B. 0 C. 2 [SIM_ORACLE question=REAL-1-01 expected=A slotA=A slotB=C slotC=B]","recorded_at":"2026-08-06T02:44:21Z","request_id":"00058002-500c-4000-800a-00090000000e","type":"question"}
+{"message":"SCENE_TRIGGER_SUCCEEDED","recorded_at":"2026-08-06T02:44:21Z","request_id":"0001900c-0006-4006-8003-000b000a0004","type":"guid"}
+{"message":"EXITED_SCENE_A_TRIGGER_ZONE","recorded_at":"2026-08-06T02:44:28Z","request_id":"000a900d-e00d-4001-8003-00000005000b","type":"guid"}
+{"message":"ANSWER_WRONG","recorded_at":"2026-08-06T02:44:51Z","request_id":"00027007-500d-4004-8005-000c00080005","type":"guid"}
+{"message":"NEXT_ROUND_STARTED","recorded_at":"2026-08-06T02:45:40Z","request_id":"000ac002-6000-4009-8008-000100060001","type":"guid"}
+{"message":"ENTERED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-06T02:46:10Z","request_id":"000ac002-e00e-400f-800c-000e0007000d","type":"guid"}
+{"message":"图中共有多少辆地面车辆？ A. 5 B. 4 C. 1 [SIM_ORACLE question=REAL-3-03 expected=B slotA=B slotB=C slotC=A]","recorded_at":"2026-08-06T02:46:14Z","request_id":"000d6003-200a-400a-8009-000900010000","type":"question"}
+{"message":"SCENE_TRIGGER_SUCCEEDED","recorded_at":"2026-08-06T02:46:14Z","request_id":"000ac00d-100a-4000-8004-000c00050009","type":"guid"}
+{"message":"EXITED_SCENE_B_TRIGGER_ZONE","recorded_at":"2026-08-06T02:46:24Z","request_id":"000b8006-900d-4009-8008-000d000e0003","type":"guid"}
+{"message":"ANSWER_WRONG","recorded_at":"2026-08-06T02:46:49Z","request_id":"000e8008-1001-400c-8004-00070007000e","type":"guid"}
+{"message":"NEXT_ROUND_STARTED","recorded_at":"2026-08-06T02:47:38Z","request_id":"0006300b-200d-4005-8001-0004000e0002","type":"guid"}
+{"message":"ENTERED_SCENE_A_TRIGGER_ZONE","recorded_at":"2026-08-06T02:48:09Z","request_id":"0002a004-500b-400f-8001-000100090000","type":"guid"}
+{"message":"图中共有多少个储油罐？ A. 1 B. 0 C. 2 [SIM_ORACLE question=REAL-2-01 expected=A slotA=C slotB=B slotC=A]","recorded_at":"2026-08-06T02:48:12Z","request_id":"000ea00f-800b-4003-8000-0004000b0003","type":"question"}
+{"message":"SCENE_TRIGGER_SUCCEEDED","recorded_at":"2026-08-06T02:48:12Z","request_id":"0003e003-6008-4007-800a-0007000d0001","type":"guid"}
+{"message":"EXITED_SCENE_A_TRIGGER_ZONE","recorded_at":"2026-08-06T02:48:24Z","request_id":"000b0005-f001-4007-800d-000e000a000c","type":"guid"}
+{"message":"ANSWER_WRONG","recorded_at":"2026-08-06T02:48:47Z","request_id":"0003a008-000a-4006-8003-000400030007","type":"guid"}
+{"message":"NEXT_ROUND_STARTED","recorded_at":"2026-08-06T02:49:33Z","request_id":"0005800e-0002-400d-800e-0009000b0008","type":"guid"}
+{"message":"MATCH_FINISHED","recorded_at":"2026-08-06T02:49:48Z","request_id":"00037001-600b-4009-800f-000800060006","type":"guid"}

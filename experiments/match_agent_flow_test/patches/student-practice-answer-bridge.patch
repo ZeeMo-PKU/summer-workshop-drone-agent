@@ -1,0 +1,15 @@
+--- a/server/index.js
++++ b/server/index.js
+@@
+ 	constructor(answerZones) {
+ 		this.answerZones = answerZones;
+ 	}
+ 	observe(status, armed) {
+-		if (status.gripper === null) return null;
++		if (status.gripper === null) {
++			if (armed && this.lastStableGripper === 0 && this.lastClosedPosition !== null) {
++				this.lastClosedPosition = { ...status.position };
++			}
++			return null;
++		}
+ 		const previousStableGripper = this.lastStableGripper;
