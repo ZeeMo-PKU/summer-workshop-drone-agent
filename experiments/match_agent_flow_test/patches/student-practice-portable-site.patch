@@ -1,0 +1,298 @@
+diff --git a/a/config/student-practice.json b/b/config/student-practice.json
+index de0a773..54c16f2 100644
+--- a/a/config/student-practice.json
++++ b/b/config/student-practice.json
+@@ -2,6 +2,11 @@
+   "version": 1,
+   "httpPort": 18080,
+   "startupTimeoutSeconds": 60,
++  "portableSite": {
++    "enabled": true,
++    "horizontalRadiusMeters": 20,
++    "maximumAltitudeMeters": 10
++  },
+   "calibration": {
+     "referenceLatitude": 39.07721710205078,
+     "referenceLongitude": 119.71366882324219,
+diff --git a/b/scripts/set-portable-site.ps1 b/b/scripts/set-portable-site.ps1
+new file mode 100644
+index 0000000..a335829
+--- /dev/null
++++ b/b/scripts/set-portable-site.ps1
+@@ -0,0 +1,88 @@
++[CmdletBinding()]
++param(
++    [Parameter(Mandatory = $true)]
++    [ValidateRange(-90, 90)]
++    [double]$ReferenceLatitude,
++
++    [Parameter(Mandatory = $true)]
++    [ValidateRange(-180, 180)]
++    [double]$ReferenceLongitude,
++
++    [Parameter(Mandatory = $true)]
++    [double]$ReferenceAltitude,
++
++    [Parameter(Mandatory = $true)]
++    [ValidateRange(-360, 360)]
++    [double]$HeadingDegrees
++)
++
++$ErrorActionPreference = "Stop"
++$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
++$packageRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptDirectory ".."))
++$configPath = Join-Path $packageRoot "config\student-practice.json"
++$backupRoot = Join-Path $packageRoot "config\backups"
++
++foreach ($value in @(
++    $ReferenceLatitude,
++    $ReferenceLongitude,
++    $ReferenceAltitude,
++    $HeadingDegrees
++)) {
++    if ([double]::IsNaN($value) -or [double]::IsInfinity($value)) {
++        throw "Site calibration values must be finite numbers."
++    }
++}
++
++if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
++    throw "Configuration file not found: $configPath"
++}
++
++$settings = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 |
++    ConvertFrom-Json
++$port = [int]$settings.httpPort
++$connection = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $port `
++    -State Listen -ErrorAction SilentlyContinue
++if ($connection) {
++    throw "The monitor is still listening on 127.0.0.1:$port. Stop it before calibration."
++}
++
++$fieldRotationDegrees = $HeadingDegrees - 90.0
++while ($fieldRotationDegrees -le -180.0) {
++    $fieldRotationDegrees += 360.0
++}
++while ($fieldRotationDegrees -gt 180.0) {
++    $fieldRotationDegrees -= 360.0
++}
++
++New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
++$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
++$backupPath = Join-Path $backupRoot "student-practice-$timestamp.json"
++Copy-Item -LiteralPath $configPath -Destination $backupPath
++
++$settings.portableSite.enabled = $true
++$settings.portableSite.horizontalRadiusMeters = 20
++$settings.portableSite.maximumAltitudeMeters = 10
++$settings.calibration.referenceLatitude = $ReferenceLatitude
++$settings.calibration.referenceLongitude = $ReferenceLongitude
++$settings.calibration.referenceAltitude = $ReferenceAltitude
++$settings.calibration.fieldRotationDegrees = $fieldRotationDegrees
++$settings.calibration.fieldOriginX = 0
++$settings.calibration.fieldOriginY = 1
++$settings.calibration.fieldOriginZ = 0
++$settings.calibration.droneReferenceOffsetX = 0
++$settings.calibration.droneReferenceOffsetY = 0
++$settings.calibration.droneReferenceOffsetZ = 0
++
++$json = $settings | ConvertTo-Json -Depth 8
++[System.IO.File]::WriteAllText(
++    $configPath,
++    $json + [Environment]::NewLine,
++    [System.Text.UTF8Encoding]::new($false)
++)
++
++Write-Host "Portable site calibration updated." -ForegroundColor Green
++Write-Host "Launch point: $ReferenceLatitude, $ReferenceLongitude, $ReferenceAltitude"
++Write-Host "Field +X heading: $HeadingDegrees degrees"
++Write-Host "Safety envelope: 20 m horizontal radius, 10 m relative altitude"
++Write-Host "Previous configuration backup: $backupPath"
++Write-Host "Before launch, keep the aircraft disarmed at this point with its nose facing field +X." -ForegroundColor Yellow
+diff --git a/a/scripts/start-student-practice.ps1 b/b/scripts/start-student-practice.ps1
+index f2d2aa4..a324345 100644
+--- a/a/scripts/start-student-practice.ps1
++++ b/b/scripts/start-student-practice.ps1
+@@ -49,6 +49,18 @@ Write-Host "点击“比赛开始”后，飞机程序可能自动起飞并执
+ Write-Host ""
+ 
+ $calibration = $settings.calibration
++$portableSite = $settings.portableSite
++if ($null -eq $portableSite -or -not [bool]$portableSite.enabled) {
++    throw "config/student-practice.json 必须启用 portableSite，禁止无边界运行。"
++}
++$portableRadius = [double]$portableSite.horizontalRadiusMeters
++$portableMaximumAltitude = [double]$portableSite.maximumAltitudeMeters
++if ($portableRadius -le 0 -or $portableRadius -gt 20) {
++    throw "portableSite.horizontalRadiusMeters 必须在 (0, 20] 米范围内。"
++}
++if ($portableMaximumAltitude -le 0 -or $portableMaximumAltitude -gt 10) {
++    throw "portableSite.maximumAltitudeMeters 必须在 (0, 10] 米范围内。"
++}
+ $env:DRONE_PROVIDER = "real"
+ $env:ANSWER_SENSOR_PROVIDER = "sim"
+ $env:SIMULATED_AREA_NODES = "all"
+@@ -68,6 +80,9 @@ $env:FIELD_ORIGIN_Z = ConvertTo-InvariantString $calibration.fieldOriginZ
+ $env:DRONE_REFERENCE_OFFSET_X = ConvertTo-InvariantString $calibration.droneReferenceOffsetX
+ $env:DRONE_REFERENCE_OFFSET_Y = ConvertTo-InvariantString $calibration.droneReferenceOffsetY
+ $env:DRONE_REFERENCE_OFFSET_Z = ConvertTo-InvariantString $calibration.droneReferenceOffsetZ
++$env:PORTABLE_SITE_ENABLED = "true"
++$env:PORTABLE_SITE_RADIUS_METERS = ConvertTo-InvariantString $portableRadius
++$env:PORTABLE_SITE_MAX_ALTITUDE_METERS = ConvertTo-InvariantString $portableMaximumAltitude
+ 
+ New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+ $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+@@ -80,6 +95,7 @@ try {
+     Write-Host "1. 在页面输入本组无人机 IP 并点击“连接无人机”。"
+     Write-Host "2. 确认飞机、场地和人员状态安全后再点击“比赛开始”。"
+     Write-Host "3. 关闭本窗口或按 Ctrl+C 可停止本机练习服务。"
++    Write-Host "便携安全范围：启动点水平半径 $portableRadius 米，相对高度不超过 $portableMaximumAltitude 米。" -ForegroundColor Yellow
+     Write-Host "运行日志：$runtimeLog"
+     Write-Host ""
+ 
+diff --git a/a/server/index.js b/b/server/index.js
+index 7f49f72..66480b3 100644
+--- a/a/server/index.js
++++ b/b/server/index.js
+@@ -490,6 +490,11 @@ function loadConfig(environment = process.env) {
+ 			}
+ 		},
+ 		calibrationConfigured,
++		portableSite: {
++			enabled: readBoolean(environment.PORTABLE_SITE_ENABLED, false, "PORTABLE_SITE_ENABLED"),
++			horizontalRadiusMeters: readPositiveInteger(environment.PORTABLE_SITE_RADIUS_METERS, 20, "PORTABLE_SITE_RADIUS_METERS"),
++			maximumAltitudeMeters: readPositiveInteger(environment.PORTABLE_SITE_MAX_ALTITUDE_METERS, 10, "PORTABLE_SITE_MAX_ALTITUDE_METERS")
++		},
+ 		devicePlan: {
+ 			drone: droneProvider,
+ 			answerSensors: readDeviceProvider(environment.ANSWER_SENSOR_PROVIDER, droneProvider, "ANSWER_SENSOR_PROVIDER"),
+@@ -873,6 +878,16 @@ function detectAnswerZone(point, zones) {
+ 	return null;
+ }
+ function isInsideSafetyBoundary(point, field) {
++	const portable = field.portableSafety;
++	if (portable?.enabled) {
++		const dx = point.x - field.startZone.x;
++		const dz = point.z - field.startZone.z;
++		const relativeAltitude = point.y - portable.groundY;
++		return Number.isFinite(relativeAltitude) &&
++			Math.hypot(dx, dz) <= portable.horizontalRadiusMeters &&
++			relativeAltitude >= -.1 &&
++			relativeAltitude <= portable.maximumAltitudeMeters;
++	}
+ 	return isInsideRectZone(point, field.safetyZone);
+ }
+ //#endregion
+@@ -1401,15 +1416,20 @@ function reduceTriggerHover(state, status, config) {
+ 			type: "SET_ANSWER_ZONE_LABELS",
+ 			layout: answerLayout
+ 		},
+-		{
+-			type: "SEND_DRONE_GUIDANCE",
+-			message: "SCENE_TRIGGER_SUCCEEDED"
+-		},
+ 		{
+ 			type: "SEND_QUESTION",
+ 			scene: zone,
+ 			question: question.question,
+-			options: { ...question.options }
++			options: { ...question.options },
++			simulationOracle: {
++				questionId: question.id,
++				expectedAnswer: question.answer,
++				answerLayout: { ...answerLayout }
++			}
++		},
++		{
++			type: "SEND_DRONE_GUIDANCE",
++			message: "SCENE_TRIGGER_SUCCEEDED"
+ 		},
+ 		{
+ 			type: "SET_AMBIENT_LIGHT",
+@@ -1581,6 +1601,19 @@ function detectTriggerZone(status, config) {
+ 	return null;
+ }
+ function isInsideSafetyRiskDistance(point, config) {
++	const portable = config.field.portableSafety;
++	if (portable?.enabled) {
++		const horizontalDistance = Math.hypot(
++			point.x - config.field.startZone.x,
++			point.z - config.field.startZone.z
++		);
++		const relativeAltitude = point.y - portable.groundY;
++		const horizontalClearance = portable.horizontalRadiusMeters - horizontalDistance;
++		const upperClearance = portable.maximumAltitudeMeters - relativeAltitude;
++		const lowerClearance = relativeAltitude + .1;
++		return Math.min(horizontalClearance, upperClearance, lowerClearance) <=
++			config.field.safetyRiskDistance;
++	}
+ 	const zone = config.field.safetyZone;
+ 	const distanceToLeft = point.x - (zone.x - zone.width / 2);
+ 	const distanceToRight = zone.x + zone.width / 2 - point.x;
+@@ -1792,7 +1825,7 @@ function createRefereeRuntime(config, deviceAdapters, initialCommandAdapters = [
+ 	let commandQueue = Promise.resolve();
+ 	async function dispatchCommand(command) {
+ 		if (command.type === "SEND_DRONE_GUIDANCE") await deviceAdapters.drone.sendGuidance(command.message);
+-		if (command.type === "SEND_QUESTION") await deviceAdapters.drone.sendQuestion(formatQuestionMessage(command.question, command.options));
++		if (command.type === "SEND_QUESTION") await deviceAdapters.drone.sendQuestion(formatQuestionMessage(command.question, command.options, command.simulationOracle));
+ 		if (command.type === "DISPLAY_SCENE") await deviceAdapters.sceneScreen?.display(command.scene, command.question);
+ 		if (command.type === "SET_ANSWER_ZONE_LABELS") await deviceAdapters.answerZoneDisplay?.show(command.layout);
+ 		if (command.type === "CLEAR_ANSWER_ZONE_LABELS") await deviceAdapters.answerZoneDisplay?.clear();
+@@ -1878,13 +1911,22 @@ function createRefereeRuntime(config, deviceAdapters, initialCommandAdapters = [
+ 		}
+ 	};
+ }
+-function formatQuestionMessage(question, options) {
+-	return [
++function formatQuestionMessage(question, options, simulationOracle) {
++	const parts = [
+ 		toSingleLine(question),
+ 		`A. ${toSingleLine(options.A)}`,
+ 		`B. ${toSingleLine(options.B)}`,
+ 		`C. ${toSingleLine(options.C)}`
+-	].join(" ");
++	];
++	if (simulationOracle) parts.push([
++		"[SIM_ORACLE",
++		`question=${simulationOracle.questionId}`,
++		`expected=${simulationOracle.expectedAnswer}`,
++		`slotA=${simulationOracle.answerLayout.A}`,
++		`slotB=${simulationOracle.answerLayout.B}`,
++		`slotC=${simulationOracle.answerLayout.C}]`
++	].join(" "));
++	return parts.join(" ");
+ }
+ function toSingleLine(value) {
+ 	return value.replace(/\s+/g, " ").trim();
+@@ -2756,7 +2798,12 @@ var RealDroneSimulatedAnswerBridge = class {
+ 		this.answerZones = answerZones;
+ 	}
+ 	observe(status, armed) {
+-		if (status.gripper === null) return null;
++		if (status.gripper === null) {
++			if (armed && this.lastStableGripper === 0 && this.lastClosedPosition !== null) {
++				this.lastClosedPosition = { ...status.position };
++			}
++			return null;
++		}
+ 		const previousStableGripper = this.lastStableGripper;
+ 		this.lastStableGripper = status.gripper;
+ 		if (status.gripper === 0) {
+@@ -7502,6 +7549,10 @@ function formatError(error) {
+ //#region src/startRefereeServer.ts
+ async function startRefereeServer(matchConfig, profile = "competition") {
+ 	const config = loadConfig();
++	matchConfig.field.portableSafety = {
++		...config.portableSite,
++		groundY: config.calibration.fieldOriginY + config.calibration.droneReferenceOffset.y
++	};
+ 	const areaNodeGateway = new AreaNodeGateway(config.areaNodes, config.devicePlan.areaNodes, config.devicePlan.answerSensors);
+ 	await areaNodeGateway.start();
+ 	const simulatedNodeIds = AREA_NODE_IDS.filter((nodeId) => config.devicePlan.areaNodes[nodeId] === "sim");
+@@ -7519,6 +7570,7 @@ async function startRefereeServer(matchConfig, profile = "competition") {
+ 	if (config.devicePlan.drone === "real") console.log(`NX port: ${config.nx.port}; select the aircraft IP in the referee console`);
+ 	console.log(`Area-node gateway listening at ${areaNodeGateway.getAddress()}`);
+ 	console.log(`Simulated area nodes: ${simulatedNodeIds.join(", ") || "none"}`);
++	if (config.portableSite.enabled) console.log(`Portable safety envelope: radius ${config.portableSite.horizontalRadiusMeters} m; maximum relative altitude ${config.portableSite.maximumAltitudeMeters} m`);
+ 	if (config.staticAssetRoot) console.log(`Static application root: ${config.staticAssetRoot}`);
+ 	if (config.devicePlan.drone === "real" && !config.calibrationConfigured) console.warn("Field calibration is not configured; set FIELD_REFERENCE_LATITUDE, FIELD_REFERENCE_LONGITUDE and FIELD_REFERENCE_ALTITUDE before starting a match.");
+ 	let shuttingDown = false;

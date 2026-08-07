@@ -13,7 +13,7 @@ namespace {
 
 constexpr float kStartLongitude = 119.71366882324219f;
 constexpr float kStartLatitude = 39.07721710205078f;
-constexpr float kReturnAltitude = 1.57f;
+constexpr float kReturnAltitude = 7.0f;
 constexpr float kReturnYaw = -90.0f;
 
 bool ok(const iking::drone::Result& result, const char* action) {
@@ -119,7 +119,7 @@ int main() {
                                                kReturnAltitude,
                                                kReturnYaw,
                                                5000),
-                    "returnToAnyPosition(start,1.57m)")) {
+                    "returnToAnyPosition(start,7.0m)")) {
                 if (++failed_return_commands >= 3) break;
             } else {
                 failed_return_commands = 0;

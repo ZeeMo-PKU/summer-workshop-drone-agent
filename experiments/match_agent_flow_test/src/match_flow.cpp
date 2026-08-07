@@ -20,6 +20,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -33,6 +34,7 @@
 #include "iking_drone_sdk.h"
 #include "flow_logic.hpp"
 #include "mission_sequence.hpp"
+#include "portable_site.hpp"
 #include "qwen_vision.hpp"
 #include "recognize_image.hpp"
 
@@ -40,7 +42,8 @@ using namespace std::chrono_literals;
 
 namespace {
 
-constexpr float kTakeoffHeight = 1.57f;
+constexpr float kMissionAltitude = 7.0f;
+constexpr float kTakeoffHeight = kMissionAltitude;
 constexpr int kRpcTimeoutMs = 5000;
 
 // 题目区使用前向相机；答题区使用吊舱可见光相机。
@@ -57,43 +60,38 @@ constexpr char kBaselineMatchSha256[] =
 constexpr char kBaselineRecognizeSha256[] =
     "0b2d178fa09e60f2dd0b2cbe05d0b90f737ca7f0e3136c51dce29b5e5f0ce51c";
 
-// 拍照旋转角度
-constexpr float kMatchYaw = -90.0f;
-
-// 当前学生练习场地标定：
-// reference=(39.07721710205078, 119.71366882324219)，rotation=0°；
+// 便携场地坐标：起飞时机头方向为 +X，+Z 指向左侧。
+constexpr double kMatchYawOffsetDegrees = 180.0;
+constexpr double kPortableHorizontalRadiusMeters = 20.0;
+constexpr double kPortableMaximumAltitudeMeters = 10.0;
+constexpr double kPortableMinimumAltitudeMeters = -0.10;
+constexpr double kAnchorReturnToleranceMeters = 1.0;
 
 // B 触发区场地坐标为 (x=5.4 m, z=0 m)。
-constexpr float kBLatitude = 39.07721710205078f;
-constexpr float kBLongitude = 119.71373131094664f;
-constexpr float kBAltitude = 1.57f;
+constexpr double kBFieldX = 5.4;
+constexpr double kBFieldZ = 0.0;
 constexpr double kBArrivalToleranceMeters = 0.20;
 
 // A 触发区场地坐标为 (x=5.4 m, z=-2.97 m)。
-constexpr float kALongitude = 119.71373131094664f;
-constexpr float kALatitude = 39.077190422086844f;
-constexpr float kAAltitude = 1.57f;
+constexpr double kAFieldX = 5.4;
+constexpr double kAFieldZ = -2.97;
 constexpr double kAArrivalToleranceMeters = 0.20;
 
 constexpr double kAnswerArrivalToleranceMeters = 0.15;
 // 物理答题区 1：(x=0, z=-3.49 m)。
-constexpr float kAnswerALongitude = 119.71366882324219f;
-constexpr float kAnswerALatitude = 39.077185750847363f;
-constexpr float kAnswerAAltitude = 1.57f;
+constexpr double kAnswerAFieldX = 0.0;
+constexpr double kAnswerAFieldZ = -3.49;
 
 // 物理答题区 2：(x=0, z=-2.97 m)。
-constexpr float kAnswerBLongitude = 119.71366882324219f;
-constexpr float kAnswerBLatitude = 39.077190422086844f;
-constexpr float kAnswerBAltitude = 1.57f;
+constexpr double kAnswerBFieldX = 0.0;
+constexpr double kAnswerBFieldZ = -2.97;
 
 // 物理答题区 3：(x=0, z=-2.45 m)。
-constexpr float kAnswerCLongitude = 119.71366882324219f;
-constexpr float kAnswerCLatitude = 39.077195093326317f;
-constexpr float kAnswerCAltitude = 1.57f;
+constexpr double kAnswerCFieldX = 0.0;
+constexpr double kAnswerCFieldZ = -2.45;
 
-constexpr float kStartLongitude = 119.71366882324219f;
-constexpr float kStartLatitude = 39.07721710205078f;
-constexpr float kStartAltitude = 1.57f;
+constexpr double kStartFieldX = 0.0;
+constexpr double kStartFieldZ = 0.0;
 constexpr double kStartArrivalToleranceMeters = 0.20;
 
 constexpr auto kArrivalStableDuration = 1s;
@@ -102,11 +100,8 @@ constexpr auto kNavigationTimeout = 60s;
 constexpr auto kAnswerResultTimeout = 5s;
 constexpr auto kTelemetryFreshnessLimit = 3s;
 constexpr auto kGroundTelemetryWait = 5s;
-constexpr double kEarthRadiusMeters = 6378137.0;
 constexpr double kAltitudeToleranceMeters = 0.20;
 constexpr double kGroundAltitudeToleranceMeters = 0.10;
-constexpr double kMinimumMissionAltitudeMeters = -0.10;
-constexpr double kMaximumMissionAltitudeMeters = 2.50;
 
 struct RefereeEvent {
     std::string request_id;
@@ -118,6 +113,8 @@ struct PositionSnapshot {
     double latitude = 0.0;
     double longitude = 0.0;
     double altitude = 0.0;
+    double heading_degrees = 0.0;
+    bool heading_valid = false;
     bool armed = true;
     bool sdk_mode = false;
     bool flight_state_valid = false;
@@ -178,6 +175,7 @@ std::mutex g_print_mutex;
 std::mutex g_artifact_mutex;
 EventQueue g_events;
 TelemetryStore g_telemetry;
+std::optional<portable_site::SiteAnchor> g_site_anchor;
 std::string g_run_directory;
 std::string g_capture_directory;
 std::ofstream g_run_log;
@@ -441,6 +439,7 @@ void onStatus(const std::string& json, void*) {
     const Json::Value& data = root["status"]["data"];
     const Json::Value& flight = data["flight"];
     const Json::Value& position = flight["positionStatus"];
+    const Json::Value& attitude = flight["attitude"];
     if (!position.isObject() ||
         !position["latitude"].isNumeric() ||
         !position["longitude"].isNumeric() ||
@@ -452,6 +451,11 @@ void onStatus(const std::string& json, void*) {
     snapshot.latitude = position["latitude"].asDouble();
     snapshot.longitude = position["longitude"].asDouble();
     snapshot.altitude = position["altitude"].asDouble();
+    snapshot.heading_valid = attitude.isObject() &&
+                             attitude["yaw"].isNumeric();
+    if (snapshot.heading_valid) {
+        snapshot.heading_degrees = attitude["yaw"].asDouble();
+    }
     snapshot.flight_state_valid = flight["isArmed"].isBool() &&
                                   flight["sdkMode"].isBool();
     if (snapshot.flight_state_valid) {
@@ -463,7 +467,9 @@ void onStatus(const std::string& json, void*) {
 
     if (!std::isfinite(snapshot.latitude) ||
         !std::isfinite(snapshot.longitude) ||
-        !std::isfinite(snapshot.altitude)) {
+        !std::isfinite(snapshot.altitude) ||
+        (snapshot.heading_valid &&
+         !std::isfinite(snapshot.heading_degrees))) {
         return;
     }
 
@@ -475,6 +481,8 @@ void onStatus(const std::string& json, void*) {
     record["latitude"] = snapshot.latitude;
     record["longitude"] = snapshot.longitude;
     record["altitude"] = snapshot.altitude;
+    record["heading_degrees"] = snapshot.heading_degrees;
+    record["heading_valid"] = snapshot.heading_valid;
     record["armed"] = snapshot.armed;
     record["sdk_mode"] = snapshot.sdk_mode;
     record["flight_state_valid"] = snapshot.flight_state_valid;
@@ -532,23 +540,68 @@ bool waitForGroundTelemetry(const char* context) {
     return false;
 }
 
-double degreesToRadians(double value) {
-    constexpr double kPi = 3.14159265358979323846;
-    return value * kPi / 180.0;
-}
+bool captureOrValidatePortableSiteAnchor() {
+    PositionSnapshot latest;
+    if (!latestPosition(latest) ||
+        std::chrono::steady_clock::now() - latest.updated_at >
+            kTelemetryFreshnessLimit ||
+        !latest.heading_valid) {
+        print("[portable-site] fresh position and yaw telemetry are required");
+        return false;
+    }
 
-double horizontalDistanceMeters(const PositionSnapshot& position,
-                                double target_latitude,
-                                double target_longitude) {
-    const double mean_latitude =
-        degreesToRadians((position.latitude + target_latitude) / 2.0);
-    const double east =
-        degreesToRadians(position.longitude - target_longitude) *
-        kEarthRadiusMeters * std::cos(mean_latitude);
-    const double north =
-        degreesToRadians(position.latitude - target_latitude) *
-        kEarthRadiusMeters;
-    return std::hypot(east, north);
+    if (!g_site_anchor) {
+        portable_site::SiteAnchor anchor{
+            latest.latitude,
+            latest.longitude,
+            latest.altitude,
+            portable_site::normalizeSignedDegrees(latest.heading_degrees),
+        };
+        if (!portable_site::isValidAnchor(anchor)) {
+            print("[portable-site] invalid launch anchor telemetry");
+            return false;
+        }
+        g_site_anchor = anchor;
+
+        Json::Value artifact;
+        artifact["latitude"] = anchor.latitude;
+        artifact["longitude"] = anchor.longitude;
+        artifact["altitude"] = anchor.altitude;
+        artifact["heading_degrees"] = anchor.heading_degrees;
+        artifact["horizontal_radius_meters"] =
+            kPortableHorizontalRadiusMeters;
+        artifact["maximum_relative_altitude_meters"] =
+            kPortableMaximumAltitudeMeters;
+        artifact["heading_contract"] =
+            "aircraft nose at first round defines field +X";
+        Json::StreamWriterBuilder builder;
+        builder["indentation"] = "  ";
+        std::ofstream file(g_run_directory + "/portable_site_anchor.json");
+        file << Json::writeString(builder, artifact) << '\n';
+        if (!file) {
+            print("[portable-site] cannot save anchor artifact");
+            g_site_anchor.reset();
+            return false;
+        }
+
+        print("[portable-site] anchor captured: radius=20.0m max_altitude=10.0m "
+              "heading=" + std::to_string(anchor.heading_degrees));
+        return true;
+    }
+
+    const double distance = portable_site::horizontalDistanceMeters(
+        *g_site_anchor, latest.latitude, latest.longitude);
+    const double altitude_error =
+        std::abs(latest.altitude - g_site_anchor->altitude);
+    if (distance > kAnchorReturnToleranceMeters ||
+        altitude_error > kGroundAltitudeToleranceMeters) {
+        print("[portable-site] new round refused: aircraft is not at the "
+              "captured launch anchor; distance=" +
+              std::to_string(distance) + "m altitude_error=" +
+              std::to_string(altitude_error) + "m");
+        return false;
+    }
+    return true;
 }
 
 bool waitForMode(iking::drone::Client& client,
@@ -590,7 +643,7 @@ bool takeOffAfterGripperClosed(iking::drone::Client& client) {
         return false;
     }
 
-    if (!isOk(client.takeOff(kTakeoffHeight, kRpcTimeoutMs), "takeOff(1.57m)")) {
+    if (!isOk(client.takeOff(kTakeoffHeight, kRpcTimeoutMs), "takeOff(7.0m)")) {
         return false;
     }
     g_flight_commanded_by_process.store(true);
@@ -611,6 +664,31 @@ bool flyToAndHover(iking::drone::Client& client,
                    double arrival_tolerance,
                    std::chrono::steady_clock::duration stable_duration =
                        kArrivalStableDuration) {
+    if (!g_site_anchor ||
+        !portable_site::isPositionWithinEnvelope(
+            *g_site_anchor,
+            latitude,
+            longitude,
+            altitude,
+            kPortableHorizontalRadiusMeters,
+            kPortableMinimumAltitudeMeters,
+            kPortableMaximumAltitudeMeters)) {
+        print(std::string("[portable-site] refusing out-of-envelope target: ") +
+              target_name);
+        return false;
+    }
+
+    iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
+    if (!isOk(client.getModeStatus(mode, 2000),
+              "getModeStatus(navigation-preflight)")) {
+        return false;
+    }
+    if (mode != iking::drone::POSITION) {
+        print(std::string("[navigation] refusing target ") + target_name +
+              ": expected POSITION, current mode=" + modeName(mode));
+        return false;
+    }
+
     print(std::string("[navigation] sending target: ") + target_name);
     if (!isOk(client.setPosition(longitude,
                                  latitude,
@@ -637,23 +715,38 @@ bool flyToAndHover(iking::drone::Client& client,
         }
         last_update = position.updated_at;
 
-        const double distance = horizontalDistanceMeters(
-            position,
+        const portable_site::SiteAnchor target_anchor{
             static_cast<double>(latitude),
-            static_cast<double>(longitude));
+            static_cast<double>(longitude),
+            0.0,
+            0.0,
+        };
+        const double distance = portable_site::horizontalDistanceMeters(
+            target_anchor, position.latitude, position.longitude);
         const double altitude_error =
             std::abs(position.altitude - static_cast<double>(altitude));
 
-        if (!flow::isAltitudeWithinEnvelope(
+        if (!portable_site::isPositionWithinEnvelope(
+                *g_site_anchor,
+                position.latitude,
+                position.longitude,
                 position.altitude,
-                kMinimumMissionAltitudeMeters,
-                kMaximumMissionAltitudeMeters)) {
-            print(std::string("[safety] altitude envelope violated while "
+                kPortableHorizontalRadiusMeters,
+                kPortableMinimumAltitudeMeters,
+                kPortableMaximumAltitudeMeters)) {
+            const double launch_distance =
+                portable_site::horizontalDistanceMeters(
+                    *g_site_anchor,
+                    position.latitude,
+                    position.longitude);
+            const double relative_altitude =
+                position.altitude - g_site_anchor->altitude;
+            print(std::string("[portable-site] envelope violated while "
                               "navigating to ") + target_name +
-                  ": altitude=" + std::to_string(position.altitude) +
-                  "m allowed=[" +
-                  std::to_string(kMinimumMissionAltitudeMeters) + "," +
-                  std::to_string(kMaximumMissionAltitudeMeters) + "]m");
+                  ": launch_distance=" + std::to_string(launch_distance) +
+                  "m relative_altitude=" +
+                  std::to_string(relative_altitude) +
+                  "m allowed_radius=20.0m allowed_altitude=[-0.1,10.0]m");
             g_urgent_return.store(true);
             return false;
         }
@@ -690,55 +783,84 @@ bool flyToAndHover(iking::drone::Client& client,
     return false;
 }
 
+bool flyToFieldAndHover(
+    iking::drone::Client& client,
+    const char* target_name,
+    double field_x,
+    double field_z,
+    double arrival_tolerance,
+    std::chrono::steady_clock::duration stable_duration =
+        kArrivalStableDuration) {
+    if (!g_site_anchor) {
+        print("[portable-site] target refused: launch anchor is unavailable");
+        return false;
+    }
+    if (!portable_site::isLocalTargetWithinEnvelope(
+            field_x,
+            field_z,
+            kMissionAltitude,
+            kPortableHorizontalRadiusMeters,
+            kPortableMaximumAltitudeMeters)) {
+        print(std::string("[portable-site] local target outside envelope: ") +
+              target_name);
+        return false;
+    }
+    const auto target = portable_site::targetFromField(
+        *g_site_anchor,
+        field_x,
+        field_z,
+        kMissionAltitude,
+        kMatchYawOffsetDegrees);
+    return flyToAndHover(
+        client,
+        target_name,
+        static_cast<float>(target.longitude),
+        static_cast<float>(target.latitude),
+        static_cast<float>(target.altitude),
+        static_cast<float>(target.yaw_degrees),
+        arrival_tolerance,
+        stable_duration);
+}
+
 bool flyToBAndHover(iking::drone::Client& client) {
-    return flyToAndHover(client,
-                         "scene B",
-                         kBLongitude,
-                         kBLatitude,
-                         kBAltitude,
-                         kMatchYaw,
-                         kBArrivalToleranceMeters,
-                         kSceneStableDuration);
+    return flyToFieldAndHover(client,
+                              "scene B",
+                              kBFieldX,
+                              kBFieldZ,
+                              kBArrivalToleranceMeters,
+                              kSceneStableDuration);
 }
 
 bool flyToAAndHover(iking::drone::Client& client) {
-    return flyToAndHover(client,
-                         "scene A",
-                         kALongitude,
-                         kALatitude,
-                         kAAltitude,
-                         kMatchYaw,
-                         kAArrivalToleranceMeters,
-                         kSceneStableDuration);
+    return flyToFieldAndHover(client,
+                              "scene A",
+                              kAFieldX,
+                              kAFieldZ,
+                              kAArrivalToleranceMeters,
+                              kSceneStableDuration);
 }
 
 bool flyToAnswerZone(iking::drone::Client& client,
                      flow::PhysicalZone zone) {
     switch (zone) {
         case flow::PhysicalZone::Zone1:
-            return flyToAndHover(client,
-                                 flow::zoneName(zone),
-                                 kAnswerALongitude,
-                                 kAnswerALatitude,
-                                 kAnswerAAltitude,
-                                 kMatchYaw,
-                                 kAnswerArrivalToleranceMeters);
+            return flyToFieldAndHover(client,
+                                      flow::zoneName(zone),
+                                      kAnswerAFieldX,
+                                      kAnswerAFieldZ,
+                                      kAnswerArrivalToleranceMeters);
         case flow::PhysicalZone::Zone2:
-            return flyToAndHover(client,
-                                 flow::zoneName(zone),
-                                 kAnswerBLongitude,
-                                 kAnswerBLatitude,
-                                 kAnswerBAltitude,
-                                 kMatchYaw,
-                                 kAnswerArrivalToleranceMeters);
+            return flyToFieldAndHover(client,
+                                      flow::zoneName(zone),
+                                      kAnswerBFieldX,
+                                      kAnswerBFieldZ,
+                                      kAnswerArrivalToleranceMeters);
         case flow::PhysicalZone::Zone3:
-            return flyToAndHover(client,
-                                 flow::zoneName(zone),
-                                 kAnswerCLongitude,
-                                 kAnswerCLatitude,
-                                 kAnswerCAltitude,
-                                 kMatchYaw,
-                                 kAnswerArrivalToleranceMeters);
+            return flyToFieldAndHover(client,
+                                      flow::zoneName(zone),
+                                      kAnswerCFieldX,
+                                      kAnswerCFieldZ,
+                                      kAnswerArrivalToleranceMeters);
     }
     return false;
 }
@@ -798,6 +920,17 @@ bool returnHomeWithSdk(iking::drone::Client& client,
               "process did not issue its takeoff");
         return false;
     }
+
+    if (!g_site_anchor) {
+        print("[return] launch anchor unavailable; refusing targeted return");
+        return false;
+    }
+    const auto start_target = portable_site::targetFromField(
+        *g_site_anchor,
+        kStartFieldX,
+        kStartFieldZ,
+        kMissionAltitude,
+        kMatchYawOffsetDegrees);
 
     constexpr auto kReturnTimeout = 180s;
     constexpr auto kReturnRetryDelay = 10s;
@@ -872,12 +1005,13 @@ bool returnHomeWithSdk(iking::drone::Client& client,
         if ((action == flow::ReturnAction::SendCommand &&
              now >= next_return_command) ||
             landing_recovery_due) {
-            if (!isOk(client.returnToAnyPosition(kStartLongitude,
-                                                 kStartLatitude,
-                                                 kStartAltitude,
-                                                 kMatchYaw,
+            if (!isOk(client.returnToAnyPosition(
+                                                 static_cast<float>(start_target.longitude),
+                                                 static_cast<float>(start_target.latitude),
+                                                 static_cast<float>(start_target.altitude),
+                                                 static_cast<float>(start_target.yaw_degrees),
                                                  kRpcTimeoutMs),
-                      "returnToAnyPosition(start,1.57m)")) {
+                      "returnToAnyPosition(start,7.0m)")) {
                 if (++failed_return_commands >= 3) {
                     print("[return] targeted return failed three times");
                     return false;
@@ -928,6 +1062,10 @@ public:
         if (!waitForGroundTelemetry("round-preflight")) {
             print("[round] preflight requires fresh telemetry, armed=false, "
                   "sdk_mode=true, and altitude<=0.10m");
+            return false;
+        }
+        if (!captureOrValidatePortableSiteAnchor()) {
+            print("[round] portable-site anchor preflight failed");
             return false;
         }
 
@@ -1070,13 +1208,11 @@ public:
 
     bool returnToStart() {
         print("[round] returning to the start zone before landing");
-        return flyToAndHover(client_,
-                             "start",
-                             kStartLongitude,
-                             kStartLatitude,
-                             kStartAltitude,
-                             kMatchYaw,
-                             kStartArrivalToleranceMeters);
+        return flyToFieldAndHover(client_,
+                                  "start",
+                                  kStartFieldX,
+                                  kStartFieldZ,
+                                  kStartArrivalToleranceMeters);
     }
 
     bool returnHome(const std::string& reason) {
@@ -1349,6 +1485,14 @@ bool initializeArtifacts(const Options& options) {
             : recognize::kDefaultModelName;
     metadata["mapping_mode"] = "semantic-answer-plus-recognized-layout";
     metadata["resident_process"] = true;
+    metadata["portable_site_mode"] = true;
+    metadata["portable_horizontal_radius_meters"] =
+        kPortableHorizontalRadiusMeters;
+    metadata["portable_maximum_relative_altitude_meters"] =
+        kPortableMaximumAltitudeMeters;
+    metadata["mission_altitude_meters"] = kMissionAltitude;
+    metadata["portable_anchor_source"] =
+        "first-round ground position and aircraft yaw";
     metadata["scene_schedule"] = "MATCH_STARTED:B;NEXT_ROUND_STARTED:A/B alternating";
     const char* simulation_oracle = std::getenv("IKING_ALLOW_SIM_ORACLE");
     metadata["simulation_oracle_enabled"] =

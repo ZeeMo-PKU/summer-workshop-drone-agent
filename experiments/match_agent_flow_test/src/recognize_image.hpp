@@ -203,6 +203,8 @@ inline std::string recognizeImage(const std::string& image_path,
 
     nlohmann::json payload = {
         {"model", model},
+        {"temperature", 0},
+        {"max_tokens", 16},
         {"messages", nlohmann::json::array({{
             {"role", "user"},
             {"content", nlohmann::json::array({

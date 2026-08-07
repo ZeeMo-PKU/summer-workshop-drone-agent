@@ -11,12 +11,14 @@ namespace {
 struct FakeQwen {
     std::vector<std::string> responses;
     std::vector<std::string> prompts;
+    std::vector<int> timeouts;
     size_t next = 0;
 
     std::string request(const std::string&,
                         const std::string& prompt,
-                        int) {
+                        int timeout) {
         prompts.push_back(prompt);
+        timeouts.push_back(timeout);
         if (next >= responses.size()) return "";
         return responses[next++];
     }
@@ -36,13 +38,16 @@ int main() {
         },
         [&](const std::string& line) { logs.push_back(line); },
         false,
-        0ms);
+        0ms,
+        15000,
+        2);
 
     const std::string question =
         "question A/x B/y C/z [SIM_ORACLE expected=A slotA=B slotB=A slotC=C]";
     assert(real_vision.recognizeSemanticAnswer("scene.jpg", question) ==
            flow::Answer::B);
     assert(real.prompts.size() == 2);
+    assert(real.timeouts == std::vector<int>({15000, 15000}));
     assert(real.prompts.front().find("SIM_ORACLE") == std::string::npos);
     const auto real_layout =
         real_vision.recognizeAnswerLayout("layout.jpg", question);
@@ -65,6 +70,8 @@ int main() {
         simulation_vision.recognizeAnswerLayout("layout.jpg", question);
     assert(simulation_layout);
     assert(flow::answerLayoutName(*simulation_layout) == "A=2,B=1,C=3");
+    assert(simulation.prompts.empty());
+    assert(simulation.timeouts.empty());
 
     FakeQwen invalid;
     invalid.responses = {"A=1,B=1,C=3", "INVALID"};
@@ -74,7 +81,9 @@ int main() {
         },
         [](const std::string&) {},
         false,
-        0ms);
+        0ms,
+        15000,
+        2);
     assert(!invalid_vision.recognizeAnswerLayout("layout.jpg", "question"));
 
     return 0;

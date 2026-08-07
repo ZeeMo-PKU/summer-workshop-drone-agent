@@ -40,6 +40,11 @@ target_include_directories(qwen_pair_probe PRIVATE src)
 target_link_libraries(qwen_pair_probe PRIVATE PkgConfig::OPENCV)
 target_compile_options(qwen_pair_probe PRIVATE -Wall -Wextra -Wpedantic)
 
+add_executable(semantic_probe tests/semantic_probe.cpp)
+target_include_directories(semantic_probe PRIVATE src)
+target_link_libraries(semantic_probe PRIVATE PkgConfig::OPENCV)
+target_compile_options(semantic_probe PRIVATE -Wall -Wextra -Wpedantic)
+
 add_executable(gimbal_probe src/gimbal_probe.cpp)
 target_link_libraries(gimbal_probe PRIVATE
     PkgConfig::DRONE_SDK

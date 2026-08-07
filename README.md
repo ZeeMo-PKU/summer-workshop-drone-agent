@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-当前基线来自服务器 `/opt/iking/match_agent/match.cpp`，下载时 SHA-256：
+当前稳定基线来自 2026-08-05 的服务器 `/opt/iking/match_agent/match.cpp`，下载时 SHA-256：
 
 ```text
 b73940bbc3ef83678e2f2d9219d2b930c54e53b15ae5d0a90be10cdb795790f1
@@ -38,14 +38,17 @@ b73940bbc3ef83678e2f2d9219d2b930c54e53b15ae5d0a90be10cdb795790f1
 - 下摄照片通过 Qwen 识别 `A/B/C` 随机物理布局。
 - 语义答案与布局合成目标位置后投递，并自动返回、降落；落地后继续等待下一轮。
 - 下摄后重新确认夹爪闭合，并修复本地裁判桥对“夹爪状态暂时未知”的位置跟踪，避免把投放误记在观察位。
-- 投放后先低空回到启动点，再使用 `returnToAnyPosition` 以 1.57 米定点返航降落，避免默认返航高度爬升；比赛结束发生在 `TAKEOFF` 时会等待进入可返航模式并重试。
-- 任务高度超过 2.50 米立即熔断；失败落地后锁定比赛，重复的 `MATCH_STARTED` 不会再次起飞。
+- 投放后先以 7 米任务高度回到启动点，再使用 `returnToAnyPosition` 定点返航降落，避免默认返航高度造成额外爬升；比赛结束发生在 `TAKEOFF` 时会等待进入可返航模式。
+- 便携场地以首次比赛开始时的实际经纬度和机头方向建立本地坐标系，硬安全包络为启动点水平半径 20 米、相对高度最高 10 米，任务巡航高度为 7 米。
+- 真实模式下每张图只进行一次最长 15 秒的 Qwen 请求；仿真真值模式跳过外部调用，结果只用于控制链验证。
+- 失败落地后锁定比赛，重复的 `MATCH_STARTED` 不会再次起飞。
 - 返航命令受飞行所有权保护，常驻启动器持续检测其他控制器，避免两个程序同时操控。
 - OpenRouter 与原 DashScope 兼容配置，Key 只从环境变量或权限 `600` 的文件读取。
 - 仿真真值与 Qwen 结果对照、失败关闭、双相机按需开启及完整运行归档。
 
-该实验版尚未合并到 `src/match.cpp`。真实比赛前仍需用能同时拍到真实题面和真实
-`A/B/C` 标记的场景完成视觉验收。
+该实验版尚未合并到 `src/match.cpp`，也尚未完成新的 7 米真实飞行闭环验收。
+真实比赛前仍需用能同时拍到真实题面和真实 `A/B/C` 标记的场景完成视觉验收，
+并重新确认电量、RTK、遥测、飞行模式和现场净空。
 
 ## 目录
 
@@ -55,6 +58,7 @@ experiments/match_agent_flow_test/  隔离的 Qwen 双图识别闭环
 experiments/match_agent_flow_test/patches/  学生练习裁判桥补丁
 experiments/match_agent_flow_test/test-data/  隔离流程的时间戳测试归档
 archive/teammate-code/        同学代码与测试资料的只读时间戳存档
+docs/server-cleanup-20260807.md  服务器实验目录清理记录
 docs/current-state.md         已验证事实、问题和下一步
 docs/reference/               比赛规则、场地坐标和原始 SDK 说明
 docs/sdk/                     SDK Markdown 说明和示例索引
@@ -63,6 +67,10 @@ tools/archive-test-run.ps1    测试结束后的拉取、提交和推送脚本
 ```
 
 仓库是公开的。测试数据可以提交，但拍摄前必须清场，不能上传含可识别人员、账号、密钥或其他隐私信息的画面。
+
+2026-08-07 的服务器最新同学源码已保存到
+`archive/teammate-code/2026-08-07-match-agent-server-snapshot/`。该快照仅供比较和追溯，
+不会覆盖稳定版 `src/match.cpp`，也不参与默认构建。
 
 ## 依赖
 

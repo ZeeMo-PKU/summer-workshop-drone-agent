@@ -32,8 +32,15 @@ inline std::string stripSimulationOracle(std::string question) {
 inline std::string semanticAnswerPrompt(const std::string& question) {
     return std::string(
         "You are the perception module for a drone competition. Use ONLY "
-        "the photographed scene and the question below. Return exactly one "
-        "uppercase letter: A, B, or C. Return INVALID if the image does not "
+        "the photographed scene and the question below. Inspect the full "
+        "image quadrant by quadrant from top-left to bottom-right. For "
+        "counting questions, count every valid target including small, "
+        "rotated, partially occluded, and tightly clustered instances; do "
+        "not stop after the most obvious objects. Distinguish the requested "
+        "object class from nearby objects, silently verify the total twice, "
+        "and then map the result to "
+        "the supplied choices. Return exactly one uppercase letter: A, B, "
+        "or C. Return INVALID if the image does not "
         "contain the referenced competition task image or enough evidence. "
         "An unrelated room, ceiling, people, or empty camera frame is INVALID; "
         "do not infer a zero-count answer from missing task content. "
@@ -66,15 +73,30 @@ public:
                Logger logger,
                bool use_simulation_oracle,
                std::chrono::milliseconds retry_delay =
-                   std::chrono::seconds(2))
+                   std::chrono::seconds(2),
+               int request_timeout_ms = 15000,
+               int max_attempts = 1)
         : request_(std::move(request)),
           logger_(std::move(logger)),
           use_simulation_oracle_(use_simulation_oracle),
-          retry_delay_(retry_delay) {}
+          retry_delay_(retry_delay),
+          request_timeout_ms_(request_timeout_ms),
+          max_attempts_(max_attempts) {}
 
     std::optional<flow::Answer> recognizeSemanticAnswer(
         const std::string& image_path,
         const std::string& question) const {
+        if (use_simulation_oracle_) {
+            const auto oracle = flow::parseSimulationOracleExpected(question);
+            if (!oracle) {
+                logger_("[vision] simulation oracle answer is missing or invalid");
+                return std::nullopt;
+            }
+            logger_("[vision] simulation oracle enabled; external semantic "
+                    "request skipped");
+            return oracle;
+        }
+
         const auto qwen = requestParsed<flow::Answer>(
             image_path,
             semanticAnswerPrompt(question),
@@ -82,25 +104,23 @@ public:
             [](const std::string& value) {
                 return flow::parseAnswerToken(value);
             });
-        if (!use_simulation_oracle_) return qwen;
-
-        const auto oracle = flow::parseSimulationOracleExpected(question);
-        if (!oracle) {
-            logger_("[vision] simulation oracle answer is missing or invalid");
-            return std::nullopt;
-        }
-        if (!qwen || *qwen != *oracle) {
-            logger_(std::string("[vision] semantic mismatch: qwen=") +
-                    (qwen ? flow::answerName(*qwen) : "INVALID") +
-                    " oracle=" + flow::answerName(*oracle) +
-                    "; simulation uses oracle");
-        }
-        return oracle;
+        return qwen;
     }
 
     std::optional<flow::AnswerLayout> recognizeAnswerLayout(
         const std::string& image_path,
         const std::string& question) const {
+        if (use_simulation_oracle_) {
+            const auto oracle = flow::parseSimulationOracleLayout(question);
+            if (!oracle) {
+                logger_("[vision] simulation oracle layout is missing or invalid");
+                return std::nullopt;
+            }
+            logger_("[vision] simulation oracle enabled; external layout "
+                    "request skipped");
+            return oracle;
+        }
+
         const auto qwen = requestParsed<flow::AnswerLayout>(
             image_path,
             answerLayoutPrompt(),
@@ -108,20 +128,7 @@ public:
             [](const std::string& value) {
                 return flow::parseAnswerLayoutToken(value);
             });
-        if (!use_simulation_oracle_) return qwen;
-
-        const auto oracle = flow::parseSimulationOracleLayout(question);
-        if (!oracle) {
-            logger_("[vision] simulation oracle layout is missing or invalid");
-            return std::nullopt;
-        }
-        if (!qwen || !(*qwen == *oracle)) {
-            logger_(std::string("[vision] layout mismatch: qwen=") +
-                    (qwen ? flow::answerLayoutName(*qwen) : "INVALID") +
-                    " oracle=" + flow::answerLayoutName(*oracle) +
-                    "; simulation uses oracle");
-        }
-        return oracle;
+        return qwen;
     }
 
 private:
@@ -131,15 +138,16 @@ private:
         const std::string& prompt,
         const char* task,
         Parser parser) const {
-        for (int attempt = 1; attempt <= 2; ++attempt) {
-            const std::string response = request_(image_path, prompt, 30000);
+        for (int attempt = 1; attempt <= max_attempts_; ++attempt) {
+            const std::string response =
+                request_(image_path, prompt, request_timeout_ms_);
             const auto parsed = parser(response);
             logger_(std::string("[vision] task=") + task +
                     " attempt=" + std::to_string(attempt) +
                     " valid=" + (parsed ? "true" : "false") +
                     " response=\"" + responseForLog(response) + "\"");
             if (parsed) return parsed;
-            if (attempt < 2) {
+            if (attempt < max_attempts_) {
                 std::this_thread::sleep_for(retry_delay_);
             }
         }
@@ -150,6 +158,8 @@ private:
     Logger logger_;
     bool use_simulation_oracle_ = false;
     std::chrono::milliseconds retry_delay_{};
+    int request_timeout_ms_ = 15000;
+    int max_attempts_ = 1;
 };
 
 }  // namespace vision

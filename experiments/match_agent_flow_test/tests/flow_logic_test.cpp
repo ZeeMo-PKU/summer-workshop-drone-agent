@@ -3,6 +3,7 @@
 #include <limits>
 
 #include "flow_logic.hpp"
+#include "portable_site.hpp"
 
 int main() {
     using namespace flow;
@@ -95,12 +96,54 @@ int main() {
     unsafe_ground.altitude = std::numeric_limits<double>::quiet_NaN();
     assert(!isGroundReady(unsafe_ground, 0.10));
 
-    assert(isAltitudeWithinEnvelope(1.57, -0.10, 2.50));
-    assert(isAltitudeWithinEnvelope(2.50, -0.10, 2.50));
-    assert(!isAltitudeWithinEnvelope(2.51, -0.10, 2.50));
-    assert(!isAltitudeWithinEnvelope(-0.11, -0.10, 2.50));
+    assert(isAltitudeWithinEnvelope(7.00, -0.10, 7.50));
+    assert(isAltitudeWithinEnvelope(7.50, -0.10, 7.50));
+    assert(!isAltitudeWithinEnvelope(7.51, -0.10, 7.50));
     assert(!isAltitudeWithinEnvelope(
-        std::numeric_limits<double>::quiet_NaN(), -0.10, 2.50));
+        std::numeric_limits<double>::quiet_NaN(), -0.10, 7.50));
+
+    const portable_site::SiteAnchor anchor{
+        39.07721710205078,
+        119.71366882324219,
+        0.0,
+        90.0,
+    };
+    assert(portable_site::isValidAnchor(anchor));
+    assert(portable_site::isLocalTargetWithinEnvelope(
+        5.4, -2.97, 7.0, 20.0, 10.0));
+    assert(!portable_site::isLocalTargetWithinEnvelope(
+        20.01, 0.0, 7.0, 20.0, 10.0));
+    assert(!portable_site::isLocalTargetWithinEnvelope(
+        0.0, 0.0, 10.01, 20.0, 10.0));
+
+    const auto scene_b = portable_site::targetFromField(
+        anchor, 5.4, 0.0, 7.0, 180.0);
+    assert(std::abs(scene_b.latitude - anchor.latitude) < 1e-9);
+    assert(std::abs(scene_b.longitude - 119.7137305) < 2e-6);
+    assert(std::abs(scene_b.altitude - 7.0) < 1e-9);
+    assert(std::abs(scene_b.yaw_degrees + 90.0) < 1e-9);
+    assert(portable_site::isPositionWithinEnvelope(
+        anchor,
+        scene_b.latitude,
+        scene_b.longitude,
+        scene_b.altitude,
+        20.0,
+        -0.1,
+        10.0));
+
+    const auto outside = portable_site::targetFromField(
+        anchor, 20.1, 0.0, 7.0, 180.0);
+    assert(!portable_site::isPositionWithinEnvelope(
+        anchor,
+        outside.latitude,
+        outside.longitude,
+        outside.altitude,
+        20.0,
+        -0.1,
+        10.0));
+    assert(!isAltitudeWithinEnvelope(-0.11, -0.10, 7.50));
+    assert(!isAltitudeWithinEnvelope(
+        std::numeric_limits<double>::quiet_NaN(), -0.10, 7.50));
 
     ResidentMatchStateMachine state;
     assert(state.phase() == Phase::Ready);

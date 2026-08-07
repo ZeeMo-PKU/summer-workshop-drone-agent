@@ -13,6 +13,7 @@ out/
 *.png
 *.log
 *.pid
+**/codex-flow-archive-*.tar.gz
 
 # Test evidence is intentionally versioned under test-data/runs.
 !test-data/runs/**/*.jpg
