@@ -50,6 +50,12 @@ b73940bbc3ef83678e2f2d9219d2b930c54e53b15ae5d0a90be10cdb795790f1
 真实比赛前仍需用能同时拍到真实题面和真实 `A/B/C` 标记的场景完成视觉验收，
 并重新确认电量、RTK、遥测、飞行模式和现场净空。
 
+## 便携性能测试
+
+`experiments/portable_performance_test/` 是不依赖裁判系统和固定场地坐标的独立测试程序。它以启动位置和机头方向为临时坐标基准，执行参数化正方形路线，测量直飞、悬停、四次原地转向、双路拍照、闭环位置误差和定点返航。
+
+程序默认 `--dry-run`。执行启动器会检查仿真/实飞配置、地面状态、其他控制进程、实飞 RTK 条件以及飞控 `RETURN_HEIGHT`，并在返航高度超过本次场地限高时拒绝起飞。默认测试参数为 3 米高度、3 米边长、1 米/秒和每站悬停 2 秒；详细命令见该实验目录的 `README.md`。
+
 ## 目录
 
 ```text
@@ -57,6 +63,7 @@ src/match.cpp                 当前服务器源码基线
 experiments/match_agent_flow_test/  隔离的 Qwen 双图识别闭环
 experiments/match_agent_flow_test/patches/  学生练习裁判桥补丁
 experiments/match_agent_flow_test/test-data/  隔离流程的时间戳测试归档
+experiments/portable_performance_test/  任意合规场地的独立性能测试
 archive/teammate-code/        同学代码与测试资料的只读时间戳存档
 docs/server-cleanup-20260807.md  服务器实验目录清理记录
 docs/current-state.md         已验证事实、问题和下一步
