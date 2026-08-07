@@ -1,0 +1,18 @@
+{
+  "baseline_match_sha256" : "ee1aa9cbf4cefa2e775e63fadd80842cbdadc603097b633557bbf354d53f54d2",
+  "baseline_recognize_sha256" : "0b2d178fa09e60f2dd0b2cbe05d0b90f737ca7f0e3136c51dce29b5e5f0ce51c",
+  "mapping_mode" : "semantic-answer-plus-recognized-layout",
+  "mission_altitude_meters" : 7,
+  "mode" : "execute",
+  "portable_anchor_source" : "first-round ground position and aircraft yaw",
+  "portable_horizontal_radius_meters" : 20,
+  "portable_maximum_relative_altitude_meters" : 10,
+  "portable_site_mode" : true,
+  "resident_process" : true,
+  "run_id" : "20260807-112731",
+  "scene_schedule" : "MATCH_STARTED:B;NEXT_ROUND_STARTED:A/B alternating",
+  "simulation_oracle_enabled" : true,
+  "started_at" : "2026-08-07T03:27:35Z",
+  "vision_api_url" : "https://openrouter.ai/api/v1/chat/completions",
+  "vision_model" : "qwen/qwen3-vl-235b-a22b-instruct"
+}

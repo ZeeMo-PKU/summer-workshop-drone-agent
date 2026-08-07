@@ -1,0 +1,9 @@
+{
+  "altitude" : 0,
+  "heading_contract" : "aircraft nose at first round defines field +X",
+  "heading_degrees" : 3.2272115535469936e-10,
+  "horizontal_radius_meters" : 20,
+  "latitude" : 39.077217102050781,
+  "longitude" : 119.71366882324219,
+  "maximum_relative_altitude_meters" : 10
+}

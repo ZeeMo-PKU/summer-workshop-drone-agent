@@ -1,0 +1,38 @@
+2026-08-07T03:18:02Z [startup] WARNING: --execute enabled; flight commands may run
+2026-08-07T03:18:05Z [sdk] getModeStatus(preflight) status=0
+2026-08-07T03:18:05Z [sdk] getPodCapability(preflight) status=0
+2026-08-07T03:18:05Z [startup] SDK connected; waiting for taskGuidance
+2026-08-07T03:20:03Z [taskGuidance] type=guid message=MATCH_STARTED
+2026-08-07T03:20:03Z [sdk] getModeStatus(round-preflight) status=0
+2026-08-07T03:20:03Z [portable-site] anchor captured: radius=20.0m max_altitude=10.0m heading=-0.000000
+2026-08-07T03:20:03Z [sdk] getPodCapability(round-preflight) status=0
+2026-08-07T03:20:03Z [round] starting flight sequence=1 round=1 scene=B
+2026-08-07T03:20:05Z [sdk] gripperClose status=0
+2026-08-07T03:20:06Z [sdk] getModeStatus status=0
+2026-08-07T03:20:06Z [sdk] takeOff(7.0m) status=0
+2026-08-07T03:20:06Z [match] takeoff accepted; waiting for POSITION
+2026-08-07T03:20:06Z [mode] TAKEOFF
+2026-08-07T03:20:23Z [mode] POSITION
+2026-08-07T03:20:23Z [match] takeoff completed
+2026-08-07T03:20:23Z [sdk] getModeStatus(navigation-preflight) status=0
+2026-08-07T03:20:23Z [navigation] sending target: scene B
+2026-08-07T03:20:23Z [sdk] setPosition status=0
+2026-08-07T03:20:23Z [navigation] target=scene B distance=5.520452m altitude=6.888000m altitude_error=0.112000m
+2026-08-07T03:20:24Z [navigation] target=scene B distance=5.520452m altitude=6.854000m altitude_error=0.146000m
+2026-08-07T03:20:25Z [navigation] target=scene B distance=5.520452m altitude=6.846000m altitude_error=0.154000m
+2026-08-07T03:20:27Z [navigation] target=scene B distance=5.520452m altitude=6.850000m altitude_error=0.150000m
+2026-08-07T03:20:28Z [navigation] target=scene B distance=5.520452m altitude=6.857000m altitude_error=0.143000m
+2026-08-07T03:20:30Z [navigation] target=scene B distance=5.520452m altitude=6.864000m altitude_error=0.136000m
+2026-08-07T03:20:31Z [navigation] target=scene B distance=4.246502m altitude=6.882000m altitude_error=0.118000m
+2026-08-07T03:20:32Z [navigation] target=scene B distance=3.397201m altitude=6.913000m altitude_error=0.087000m
+2026-08-07T03:20:34Z [navigation] target=scene B distance=1.698601m altitude=6.952000m altitude_error=0.048000m
+2026-08-07T03:20:35Z [navigation] target=scene B distance=0.849300m altitude=6.977000m altitude_error=0.023000m
+2026-08-07T03:20:36Z [navigation] target=scene B distance=0.000000m altitude=6.997000m altitude_error=0.003000m
+2026-08-07T03:20:37Z [navigation] target=scene B distance=0.000000m altitude=6.994000m altitude_error=0.006000m
+2026-08-07T03:20:39Z [navigation] target=scene B distance=0.000000m altitude=6.993000m altitude_error=0.007000m
+2026-08-07T03:20:39Z [navigation] reached scene B; stable hover confirmed for 3000ms
+2026-08-07T03:20:39Z [round] scene B reached; waiting for trigger
+2026-08-07T03:22:47Z [return] reason=process exit
+2026-08-07T03:22:47Z [return] mode=POSITION
+2026-08-07T03:22:47Z [sdk] returnToAnyPosition(start,7.0m) status=0
+2026-08-07T03:22:47Z [return] mode=LANDING
