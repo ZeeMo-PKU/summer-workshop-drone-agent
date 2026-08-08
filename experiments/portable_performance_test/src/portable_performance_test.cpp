@@ -650,12 +650,12 @@ bool parseNumber(const char* text, double& output) {
 void printUsage(const char* program) {
     std::cout
         << "usage: " << program << " [--dry-run | --execute] [options]\n"
-        << "  --altitude M             test altitude, 1..10 (default 3)\n"
+        << "  --altitude M             test altitude, 1..20 (default 3)\n"
         << "  --leg M                  square edge, 1..10 (default 3)\n"
         << "  --speed MPS              movement speed, 0.3..2 (default 1)\n"
         << "  --hover SEC              station hover, 1..10 (default 2)\n"
-        << "  --site-radius M          safety radius, 3..20 (default 10)\n"
-        << "  --site-altitude-limit M  safety altitude, <=10 (default 10)\n"
+        << "  --site-radius M          safety radius, 3..20 (default 20)\n"
+        << "  --site-altitude-limit M  safety altitude, <=20 (default 20)\n"
         << "  --camera front|pod|both  capture mode (default both)\n"
         << "  --run-id ID              artifact directory name\n"
         << "  --run-root PATH          artifact root\n";

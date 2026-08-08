@@ -1,0 +1,134 @@
+无人机 CMD 一行命令手册
+========================
+
+使用方法：
+1. 打开 Windows 的“命令提示符（CMD）”。
+2. 从下面复制完整的一行，粘贴到 CMD，按回车。
+3. 一次只能启动一个控制程序。
+4. 比赛程序启动后会等待裁判系统，不会因为启动命令本身立刻飞行。
+5. 性能测试程序通过检查后会立即开始，请先清空场地。
+6. 运行中的 CMD 窗口要保持打开；显示“等待裁判”不是卡住。
+7. 需要停止时另开一个 CMD，再复制对应的 stop 命令。
+8. 每次启动前，建议先复制“一键自检”命令；看到结论为“可以继续”再启动。
+
+辅助程序位置：
+%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py
+
+
+一、一键自检（不会起飞，推荐每次先运行）
+------------------------------------------
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" check
+
+它会检查 SSH、服务器文件、飞行模式、落地状态、SDK 控制、其他控制程序和实飞定位。
+它也会检查 Codex 比赛程序和性能测试程序是否已经由最新源码编译。
+真正启动时若发现源码更新，一键入口会自动编译并跑测试，通过后才继续。
+
+
+二、查看完整飞机状态（不会起飞）
+--------------------------------
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" status
+
+
+三、切换仿真或实飞模式（不会起飞）
+----------------------------------
+
+切换为仿真模式：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" set-sim
+
+切换为实飞模式：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" set-real
+
+切换前必须确保飞机已经落地、未解锁，并且没有比赛或测试程序运行。
+命令会在写入后重新读取 CFG_FLIGHTSIM，确认确实切换成功。
+模式切换本身不会起飞，也不会自动解锁飞机。如果飞控拒绝写入，命令会显示错误，不会假装成功。
+
+
+四、Codex 比赛程序
+------------------
+
+只监听裁判信息，不发送飞行命令：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" match-dry
+
+仿真运行并等待裁判：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" match-sim
+
+启动后，既可在裁判页面点击“比赛开始”和“续轮开始”，也可在另一个 CMD 窗口手动触发：
+
+手动启动第一轮：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" match-first
+
+上一轮落地完成后，手动启动续轮：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" match-next
+
+若比赛程序未运行，手动触发命令会报错。比赛进行中重复启动第一轮，或尚未落地就请求续轮，状态机会拒绝该事件。
+此程序当前只允许仿真模式，不提供实飞启动命令。
+一键入口会自动建立 Qwen 识图网络通道；CMD 窗口必须保持打开。
+程序在首次比赛开始时以当前起飞点和机头方向建立场地坐标，程序自身的硬限制为：
+相对起飞点水平半径 20 米、相对高度最高 20 米；当前任务巡航高度仍为 7 米。
+
+停止 Codex 比赛程序：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" stop-match
+
+
+五、同学的比赛程序
+------------------
+
+只监听裁判信息，不发送飞行命令：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" classmate-dry
+
+仿真运行并等待裁判：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" classmate-sim
+
+实飞运行并等待裁判：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" classmate-real
+
+停止同学的比赛程序：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" stop-classmate
+
+说明：辅助程序没有修改同学的 match.cpp、match 或原启动方法。
+它只是自动建立识图代理和 SSH 隧道，然后调用同学原来的：
+cd /opt/iking/match_agent && HTTPS_PROXY=http://127.0.0.1:18088 ./match --execute
+
+重要：同学程序仍使用它自己的原场地坐标和方向，不属于任意场地程序。
+不要在未经重新标定的客户场地运行 classmate-sim 或 classmate-real。
+
+
+六、拍照、飞行、转弯、返航性能测试
+------------------------------------
+
+仿真测试，飞行高度 3 米：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" test-sim 3
+
+实飞测试，飞行高度 3 米：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" test-real 3
+
+最后的数字就是飞行高度，可以改成 1 到 20，例如仿真高度 7 米：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" test-sim 7
+
+该程序以每次启动位置和当时机头方向为坐标原点，不使用固定经纬度。
+一键命令固定使用水平半径 20 米、相对高度上限 20 米；默认边长只有 3 米。
+
+停止性能测试程序：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" stop-test
+
+
+七、最重要的区别
+----------------
+
+match-sim：Codex 比赛程序，只能仿真，启动后等待裁判命令。
+classmate-sim/classmate-real：同学原比赛程序，辅助程序自动准备识图网络，启动后等待裁判命令。
+test-sim/test-real：性能测试，通过检查后立即飞，不等待裁判命令。
+
+sim 表示仿真，real 表示实飞。复制错模式时，程序会拒绝启动。
+实飞前必须确认人员离开航线、定位正常、电量充足、返航高度适合现场，并且没有其他控制程序运行。
+
+
+八、“任意场地”和“安全区”的准确含义
+------------------------------------
+
+性能测试程序不绑定旧场地经纬度，可以在不同室外展示场地重新建立本地坐标。
+但是“任意场地”不等于可以绕过禁飞区、机场限制、飞控地理围栏或当地法规。
+还必须满足：场地合法可飞、起飞点周围水平 20 米和上方 20 米净空、定位正常、
+返航高度不超过 20 米、飞机落地未解锁、没有其他控制程序。
+
+这套代码只限制自身发送的目标点；它不会删除或绕过飞控厂商、监管或系统级地理围栏。

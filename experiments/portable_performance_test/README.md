@@ -19,7 +19,7 @@
 - 启动器要求飞机处于 `STANDBY`、未解锁、高度 0、SDK 控制且没有其他控制器。
 - 实飞还要求人工确认电量充足、现场净空，并要求 RTK 状态和卫星数量合格。
 - 启动器读取 `RETURN_HEIGHT`；若返航高度超过本次场地限高，程序拒绝起飞。
-- 高度上限不超过 10 米，水平半径不超过 20 米。任何运行中越界都会中止测试并返航。
+- 高度上限不超过 20 米，水平半径不超过 20 米。任何运行中越界都会中止测试并返航。
 - “任意场地”指具备有效定位、稳定悬停能力、满足净空和限高条件的场地，不代表可在禁飞区、人员上方或无定位环境飞行。
 
 ## 离线查看路线
@@ -27,7 +27,7 @@
 ```bash
 ./build/portable_performance_test --dry-run \
   --altitude 3 --leg 3 --speed 1 --hover 2 \
-  --site-radius 10 --site-altitude-limit 10 --camera both
+  --site-radius 20 --site-altitude-limit 20 --camera both
 ```
 
 ## 仿真执行
@@ -35,7 +35,7 @@
 ```bash
 ./scripts/run.sh --execute --environment sim --confirm-site-clear \
   --altitude 3 --leg 3 --speed 1 --hover 2 \
-  --site-radius 10 --site-altitude-limit 10 --camera both
+  --site-radius 20 --site-altitude-limit 20 --camera both
 ```
 
 ## 实飞执行
@@ -44,7 +44,7 @@
 ./scripts/run.sh --execute --environment real \
   --confirm-site-clear --confirm-battery-ready \
   --altitude 3 --leg 3 --speed 1 --hover 2 \
-  --site-radius 10 --site-altitude-limit 10 --camera both
+  --site-radius 20 --site-altitude-limit 20 --camera both
 ```
 
 每次结果写入 `runs/<时间戳>/`。照片上传公开仓库前必须先检查人脸、手机屏幕、二维码和其他隐私内容。

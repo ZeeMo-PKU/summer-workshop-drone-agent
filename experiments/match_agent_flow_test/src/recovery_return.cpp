@@ -1,20 +1,46 @@
 #include <chrono>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <thread>
 
+#include <json/json.h>
+
 #include "iking_drone_sdk.h"
 #include "flow_logic.hpp"
+#include "portable_site.hpp"
 
 using namespace std::chrono_literals;
 
 namespace {
 
-constexpr float kStartLongitude = 119.71366882324219f;
-constexpr float kStartLatitude = 39.07721710205078f;
 constexpr float kReturnAltitude = 7.0f;
-constexpr float kReturnYaw = -90.0f;
+constexpr float kReturnYawOffset = 180.0f;
+
+std::optional<portable_site::SiteAnchor> readAnchor(
+    const std::string& path) {
+    std::ifstream file(path);
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::string errors;
+    if (!file || !Json::parseFromStream(builder, file, &root, &errors) ||
+        !root["latitude"].isNumeric() ||
+        !root["longitude"].isNumeric() ||
+        !root["altitude"].isNumeric() ||
+        !root["heading_degrees"].isNumeric()) {
+        return std::nullopt;
+    }
+    portable_site::SiteAnchor anchor{
+        root["latitude"].asDouble(),
+        root["longitude"].asDouble(),
+        root["altitude"].asDouble(),
+        root["heading_degrees"].asDouble(),
+    };
+    if (!portable_site::isValidAnchor(anchor)) return std::nullopt;
+    return anchor;
+}
 
 bool ok(const iking::drone::Result& result, const char* action) {
     std::cout << "[recovery] " << action
@@ -48,7 +74,20 @@ const char* modeName(iking::drone::DRONE_MODE_STATUS_t mode) {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc != 3 || std::string(argv[1]) != "--anchor") {
+        std::cerr << "usage: " << argv[0]
+                  << " --anchor /absolute/path/to/portable_site_anchor.json\n";
+        return 2;
+    }
+    const auto anchor = readAnchor(argv[2]);
+    if (!anchor) {
+        std::cerr << "[recovery] invalid or unreadable portable-site anchor\n";
+        return 2;
+    }
+    const auto return_target = portable_site::targetFromField(
+        *anchor, 0.0, 0.0, kReturnAltitude, kReturnYawOffset);
+
     const char* simulation = std::getenv("IKING_SIMULATION_CONFIRMED");
     if (!simulation || std::string(simulation) != "1") {
         std::cerr << "[recovery] IKING_SIMULATION_CONFIRMED=1 is required\n";
@@ -70,6 +109,7 @@ int main() {
     int failed_mode_queries = 0;
     int failed_return_commands = 0;
     int previous_mode = -1;
+    bool return_command_accepted = false;
 
     while (std::chrono::steady_clock::now() < deadline) {
         iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
@@ -105,27 +145,42 @@ int main() {
             mode == iking::drone::LANDING &&
             landing_started_at.time_since_epoch().count() != 0 &&
             flow::shouldRecoverStalledLanding(
-                last_return_command.time_since_epoch().count() != 0,
+                return_command_accepted,
                 std::chrono::duration<double>(now - landing_started_at).count(),
                 last_return_command.time_since_epoch().count() == 0
                     ? 0.0
                     : std::chrono::duration<double>(
                           now - last_return_command).count());
-        if ((action == flow::ReturnAction::SendCommand &&
-             now >= next_return_command) ||
-            landing_recovery_due) {
-            if (!ok(client.returnToAnyPosition(kStartLongitude,
-                                               kStartLatitude,
-                                               kReturnAltitude,
-                                               kReturnYaw,
-                                               5000),
-                    "returnToAnyPosition(start,7.0m)")) {
+        const double command_elapsed_seconds =
+            last_return_command.time_since_epoch().count() == 0
+                ? 0.0
+                : std::chrono::duration<double>(
+                      now - last_return_command).count();
+        const bool position_return_due =
+            now >= next_return_command &&
+            flow::shouldIssuePositionReturn(
+                action, return_command_accepted, command_elapsed_seconds);
+        if (position_return_due ||
+            (landing_recovery_due && now >= next_return_command)) {
+            const bool accepted = ok(client.returnToAnyPosition(
+                                         static_cast<float>(
+                                             return_target.longitude),
+                                         static_cast<float>(
+                                             return_target.latitude),
+                                         static_cast<float>(
+                                             return_target.altitude),
+                                         static_cast<float>(
+                                             return_target.yaw_degrees),
+                                         5000),
+                                     "returnToAnyPosition(start,7.0m)");
+            if (!accepted) {
                 if (++failed_return_commands >= 3) break;
             } else {
                 failed_return_commands = 0;
+                return_command_accepted = true;
             }
             last_return_command = now;
-            next_return_command = now + 10s;
+            next_return_command = now + (accepted ? 60s : 10s);
         }
 
         std::this_thread::sleep_for(500ms);

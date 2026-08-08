@@ -90,6 +90,15 @@ inline bool shouldRecoverStalledLanding(bool return_command_sent,
                                : landing_elapsed_seconds >= 15.0;
 }
 
+inline bool shouldIssuePositionReturn(ReturnAction action,
+                                      bool return_command_accepted,
+                                      double command_elapsed_seconds) {
+    if (action != ReturnAction::SendCommand) return false;
+    if (!return_command_accepted) return true;
+    return std::isfinite(command_elapsed_seconds) &&
+           command_elapsed_seconds >= 60.0;
+}
+
 inline ReturnAction returnActionForMode(ReturnMode mode) {
     switch (mode) {
         case ReturnMode::Standby: return ReturnAction::Complete;
@@ -102,6 +111,13 @@ inline ReturnAction returnActionForMode(ReturnMode mode) {
             return ReturnAction::SendCommand;
     }
     return ReturnAction::Wait;
+}
+
+inline bool shouldRetryPositionCommand(int failed_attempts,
+                                       ReturnMode current_mode,
+                                       bool interrupted) {
+    return failed_attempts == 1 && current_mode == ReturnMode::Position &&
+           !interrupted;
 }
 
 struct AnswerLayout {

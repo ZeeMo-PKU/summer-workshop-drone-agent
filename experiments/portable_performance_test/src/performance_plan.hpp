@@ -6,6 +6,8 @@
 
 namespace performance {
 
+constexpr double kMaximumAltitudeMeters = 20.0;
+
 enum class CameraMode { Front, Pod, Both };
 enum class StepKind { Takeoff, Hover, Capture, MoveForward, Turn, Return };
 
@@ -15,8 +17,8 @@ struct Options {
     double speed_meters_per_second = 1.0;
     double hover_seconds = 2.0;
     double turn_degrees = 90.0;
-    double site_radius_meters = 10.0;
-    double site_altitude_limit_meters = 10.0;
+    double site_radius_meters = 20.0;
+    double site_altitude_limit_meters = kMaximumAltitudeMeters;
     CameraMode camera = CameraMode::Both;
 };
 
@@ -36,8 +38,9 @@ inline bool isValid(const Options& options, std::string* error = nullptr) {
         return false;
     };
     if (!std::isfinite(options.altitude_meters) ||
-        options.altitude_meters < 1.0 || options.altitude_meters > 10.0) {
-        return fail("altitude must be within [1, 10] meters");
+        options.altitude_meters < 1.0 ||
+        options.altitude_meters > kMaximumAltitudeMeters) {
+        return fail("altitude must be within [1, 20] meters");
     }
     if (!std::isfinite(options.leg_meters) ||
         options.leg_meters < 1.0 || options.leg_meters > 10.0) {
@@ -63,8 +66,8 @@ inline bool isValid(const Options& options, std::string* error = nullptr) {
     }
     if (!std::isfinite(options.site_altitude_limit_meters) ||
         options.site_altitude_limit_meters < options.altitude_meters ||
-        options.site_altitude_limit_meters > 10.0) {
-        return fail("site altitude limit must cover the route and not exceed 10 meters");
+        options.site_altitude_limit_meters > kMaximumAltitudeMeters) {
+        return fail("site altitude limit must cover the route and not exceed 20 meters");
     }
     if (maximumPlannedRadius(options) + 0.5 >
         options.site_radius_meters) {

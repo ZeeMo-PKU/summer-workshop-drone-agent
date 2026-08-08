@@ -63,7 +63,7 @@ constexpr char kBaselineRecognizeSha256[] =
 // 便携场地坐标：起飞时机头方向为 +X，+Z 指向左侧。
 constexpr double kMatchYawOffsetDegrees = 180.0;
 constexpr double kPortableHorizontalRadiusMeters = 20.0;
-constexpr double kPortableMaximumAltitudeMeters = 10.0;
+constexpr double kPortableMaximumAltitudeMeters = 20.0;
 constexpr double kPortableMinimumAltitudeMeters = -0.10;
 constexpr double kAnchorReturnToleranceMeters = 1.0;
 
@@ -171,6 +171,8 @@ std::atomic<bool> g_stop{false};
 std::atomic<bool> g_urgent_return{false};
 std::atomic<bool> g_flight_commanded_by_process{false};
 std::atomic<AnswerResult> g_answer_result{AnswerResult::Pending};
+volatile std::sig_atomic_t g_manual_match_start_requested = 0;
+volatile std::sig_atomic_t g_manual_next_round_requested = 0;
 std::mutex g_print_mutex;
 std::mutex g_artifact_mutex;
 EventQueue g_events;
@@ -332,8 +334,42 @@ bool hasCameraType(const Json::Value& capability,
     return false;
 }
 
-void onSignal(int) {
+void onSignal(int signal_number) {
+    if (signal_number == SIGUSR1) {
+        g_manual_match_start_requested = 1;
+        return;
+    }
+    if (signal_number == SIGUSR2) {
+        g_manual_next_round_requested = 1;
+        return;
+    }
     g_stop.store(true);
+}
+
+void enqueueManualEvent(const char* message) {
+    RefereeEvent event;
+    event.type = "manual-control";
+    event.message = message;
+
+    Json::Value record;
+    record["type"] = event.type;
+    record["message"] = event.message;
+    record["source"] = "SIGUSR";
+    appendJsonLine(g_event_log, record);
+
+    print(std::string("[manual-control] requested ") + message);
+    g_events.push(std::move(event), false);
+}
+
+void pollManualEvents() {
+    if (g_manual_match_start_requested != 0) {
+        g_manual_match_start_requested = 0;
+        enqueueManualEvent("MATCH_STARTED");
+    }
+    if (g_manual_next_round_requested != 0) {
+        g_manual_next_round_requested = 0;
+        enqueueManualEvent("NEXT_ROUND_STARTED");
+    }
 }
 
 bool isOk(const iking::drone::Result& result, const char* action) {
@@ -584,7 +620,7 @@ bool captureOrValidatePortableSiteAnchor() {
             return false;
         }
 
-        print("[portable-site] anchor captured: radius=20.0m max_altitude=10.0m "
+        print("[portable-site] anchor captured: radius=20.0m max_altitude=20.0m "
               "heading=" + std::to_string(anchor.heading_degrees));
         return true;
     }
@@ -655,6 +691,46 @@ bool takeOffAfterGripperClosed(iking::drone::Client& client) {
     return reached;
 }
 
+bool sendPositionWithBoundedRetry(iking::drone::Client& client,
+                                  const char* target_name,
+                                  float longitude,
+                                  float latitude,
+                                  float altitude,
+                                  float yaw) {
+    for (int attempt = 1; attempt <= 2; ++attempt) {
+        const std::string action =
+            "setPosition(" + std::string(target_name) + ",attempt=" +
+            std::to_string(attempt) + ")";
+        if (isOk(client.setPosition(longitude,
+                                    latitude,
+                                    altitude,
+                                    yaw,
+                                    kRpcTimeoutMs),
+                 action.c_str())) {
+            return true;
+        }
+
+        const bool interrupted = g_stop.load() || g_urgent_return.load();
+        iking::drone::DRONE_MODE_STATUS_t mode = iking::drone::STANDBY;
+        if (interrupted ||
+            !isOk(client.getModeStatus(mode, 2000),
+                  "getModeStatus(setPosition-retry)")) {
+            return false;
+        }
+        if (!flow::shouldRetryPositionCommand(
+                attempt, returnModeFromSdk(mode), interrupted)) {
+            print(std::string("[navigation] setPosition retry refused for ") +
+                  target_name + ": current mode=" + modeName(mode));
+            return false;
+        }
+
+        print(std::string("[navigation] retrying target once: ") +
+              target_name);
+        std::this_thread::sleep_for(500ms);
+    }
+    return false;
+}
+
 bool flyToAndHover(iking::drone::Client& client,
                    const char* target_name,
                    float longitude,
@@ -690,12 +766,12 @@ bool flyToAndHover(iking::drone::Client& client,
     }
 
     print(std::string("[navigation] sending target: ") + target_name);
-    if (!isOk(client.setPosition(longitude,
-                                 latitude,
-                                 altitude,
-                                 yaw,
-                                 kRpcTimeoutMs),
-              "setPosition")) {
+    if (!sendPositionWithBoundedRetry(client,
+                                      target_name,
+                                      longitude,
+                                      latitude,
+                                      altitude,
+                                      yaw)) {
         return false;
     }
 
@@ -708,8 +784,27 @@ bool flyToAndHover(iking::drone::Client& client,
     while (std::chrono::steady_clock::now() < deadline) {
         if (g_stop.load() || g_urgent_return.load()) return false;
 
+        const auto now = std::chrono::steady_clock::now();
         PositionSnapshot position;
-        if (!latestPosition(position) || position.updated_at == last_update) {
+        if (!latestPosition(position)) {
+            print(std::string("[navigation] telemetry unavailable for ") +
+                  target_name);
+            return false;
+        }
+        if (now - position.updated_at > kTelemetryFreshnessLimit) {
+            print(std::string("[navigation] telemetry stale for ") +
+                  target_name +
+                  "; aborting without waiting for navigation timeout");
+            return false;
+        }
+        if (!position.flight_state_valid || !position.sdk_mode) {
+            print(std::string("[navigation] invalid flight control telemetry for ") +
+                  target_name + ": state_valid=" +
+                  (position.flight_state_valid ? "true" : "false") +
+                  " sdk_mode=" + (position.sdk_mode ? "true" : "false"));
+            return false;
+        }
+        if (position.updated_at == last_update) {
             std::this_thread::sleep_for(100ms);
             continue;
         }
@@ -746,7 +841,7 @@ bool flyToAndHover(iking::drone::Client& client,
                   ": launch_distance=" + std::to_string(launch_distance) +
                   "m relative_altitude=" +
                   std::to_string(relative_altitude) +
-                  "m allowed_radius=20.0m allowed_altitude=[-0.1,10.0]m");
+                  "m allowed_radius=20.0m allowed_altitude=[-0.1,20.0]m");
             g_urgent_return.store(true);
             return false;
         }
@@ -941,6 +1036,7 @@ bool returnHomeWithSdk(iking::drone::Client& client,
     int failed_mode_queries = 0;
     int failed_return_commands = 0;
     int previous_mode = -1;
+    bool return_command_accepted = false;
     bool reported_takeoff_wait = false;
     bool reported_unconfirmed_ground = false;
 
@@ -996,31 +1092,46 @@ bool returnHomeWithSdk(iking::drone::Client& client,
             mode == iking::drone::LANDING &&
             landing_started_at.time_since_epoch().count() != 0 &&
             flow::shouldRecoverStalledLanding(
-                last_return_command.time_since_epoch().count() != 0,
+                return_command_accepted,
                 std::chrono::duration<double>(now - landing_started_at).count(),
                 last_return_command.time_since_epoch().count() == 0
                     ? 0.0
                     : std::chrono::duration<double>(
                           now - last_return_command).count());
-        if ((action == flow::ReturnAction::SendCommand &&
-             now >= next_return_command) ||
-            landing_recovery_due) {
-            if (!isOk(client.returnToAnyPosition(
-                                                 static_cast<float>(start_target.longitude),
-                                                 static_cast<float>(start_target.latitude),
-                                                 static_cast<float>(start_target.altitude),
-                                                 static_cast<float>(start_target.yaw_degrees),
-                                                 kRpcTimeoutMs),
-                      "returnToAnyPosition(start,7.0m)")) {
+        const double command_elapsed_seconds =
+            last_return_command.time_since_epoch().count() == 0
+                ? 0.0
+                : std::chrono::duration<double>(
+                      now - last_return_command).count();
+        const bool position_return_due =
+            now >= next_return_command &&
+            flow::shouldIssuePositionReturn(
+                action, return_command_accepted, command_elapsed_seconds);
+        if (position_return_due ||
+            (landing_recovery_due && now >= next_return_command)) {
+            const bool accepted = isOk(client.returnToAnyPosition(
+                                           static_cast<float>(
+                                               start_target.longitude),
+                                           static_cast<float>(
+                                               start_target.latitude),
+                                           static_cast<float>(
+                                               start_target.altitude),
+                                           static_cast<float>(
+                                               start_target.yaw_degrees),
+                                           kRpcTimeoutMs),
+                                       "returnToAnyPosition(start,7.0m)");
+            if (!accepted) {
                 if (++failed_return_commands >= 3) {
                     print("[return] targeted return failed three times");
                     return false;
                 }
             } else {
                 failed_return_commands = 0;
+                return_command_accepted = true;
             }
             last_return_command = now;
-            next_return_command = now + kReturnRetryDelay;
+            next_return_command =
+                now + (accepted ? 60s : kReturnRetryDelay);
         }
 
         std::this_thread::sleep_for(500ms);
@@ -1558,6 +1669,8 @@ int main(int argc, char** argv) {
 
     std::signal(SIGINT, onSignal);
     std::signal(SIGTERM, onSignal);
+    std::signal(SIGUSR1, onSignal);
+    std::signal(SIGUSR2, onSignal);
 
     print(options.execute
               ? "[startup] WARNING: --execute enabled; flight commands may run"
@@ -1616,7 +1729,10 @@ int main(int argc, char** argv) {
     print("[startup] SDK connected; waiting for taskGuidance");
 
     std::thread worker(eventLoop, std::ref(client), options.execute);
-    while (!g_stop.load()) std::this_thread::sleep_for(200ms);
+    while (!g_stop.load()) {
+        pollManualEvents();
+        std::this_thread::sleep_for(200ms);
+    }
 
     g_events.stop();
     worker.join();

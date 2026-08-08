@@ -71,6 +71,14 @@ int main() {
     assert(!shouldRecoverStalledLanding(true, 120.0, 59.9));
     assert(shouldRecoverStalledLanding(true, 120.0, 60.0));
     assert(!shouldRecoverStalledLanding(false, -1.0, 0.0));
+    assert(shouldIssuePositionReturn(
+        ReturnAction::SendCommand, false, 0.0));
+    assert(!shouldIssuePositionReturn(
+        ReturnAction::SendCommand, true, 59.9));
+    assert(shouldIssuePositionReturn(
+        ReturnAction::SendCommand, true, 60.0));
+    assert(!shouldIssuePositionReturn(
+        ReturnAction::Wait, false, 0.0));
 
     const GroundTelemetryCheck ground_ready{
         true, true, true, false, true, 0.04};
@@ -102,6 +110,11 @@ int main() {
     assert(!isAltitudeWithinEnvelope(
         std::numeric_limits<double>::quiet_NaN(), -0.10, 7.50));
 
+    assert(shouldRetryPositionCommand(1, ReturnMode::Position, false));
+    assert(!shouldRetryPositionCommand(2, ReturnMode::Position, false));
+    assert(!shouldRetryPositionCommand(1, ReturnMode::Mission, false));
+    assert(!shouldRetryPositionCommand(1, ReturnMode::Position, true));
+
     const portable_site::SiteAnchor anchor{
         39.07721710205078,
         119.71366882324219,
@@ -110,11 +123,11 @@ int main() {
     };
     assert(portable_site::isValidAnchor(anchor));
     assert(portable_site::isLocalTargetWithinEnvelope(
-        5.4, -2.97, 7.0, 20.0, 10.0));
+        5.4, -2.97, 7.0, 20.0, 20.0));
     assert(!portable_site::isLocalTargetWithinEnvelope(
-        20.01, 0.0, 7.0, 20.0, 10.0));
+        20.01, 0.0, 7.0, 20.0, 20.0));
     assert(!portable_site::isLocalTargetWithinEnvelope(
-        0.0, 0.0, 10.01, 20.0, 10.0));
+        0.0, 0.0, 20.01, 20.0, 20.0));
 
     const auto scene_b = portable_site::targetFromField(
         anchor, 5.4, 0.0, 7.0, 180.0);
@@ -129,7 +142,7 @@ int main() {
         scene_b.altitude,
         20.0,
         -0.1,
-        10.0));
+        20.0));
 
     const auto outside = portable_site::targetFromField(
         anchor, 20.1, 0.0, 7.0, 180.0);
@@ -140,7 +153,7 @@ int main() {
         outside.altitude,
         20.0,
         -0.1,
-        10.0));
+        20.0));
     assert(!isAltitudeWithinEnvelope(-0.11, -0.10, 7.50));
     assert(!isAltitudeWithinEnvelope(
         std::numeric_limits<double>::quiet_NaN(), -0.10, 7.50));

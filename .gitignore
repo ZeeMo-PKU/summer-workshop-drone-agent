@@ -5,6 +5,8 @@ out/
 *.so
 *.a
 *.arm64
+__pycache__/
+*.py[cod]
 
 # Runtime outputs
 /captures/

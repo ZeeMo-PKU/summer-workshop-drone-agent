@@ -7,6 +7,8 @@ int main() {
     performance::Options options;
     std::string error;
     assert(performance::isValid(options, &error));
+    assert(options.site_radius_meters == 20.0);
+    assert(options.site_altitude_limit_meters == 20.0);
     assert(performance::maximumPlannedRadius(options) > 4.24);
     assert(performance::maximumPlannedRadius(options) < 4.25);
 
@@ -27,11 +29,26 @@ int main() {
     assert(turns == 4);
     assert(captures == 5);
 
+    auto boundary = options;
+    boundary.altitude_meters = 20.0;
+    boundary.site_altitude_limit_meters = 20.0;
+    assert(performance::isValid(boundary, &error));
+
     auto invalid = options;
-    invalid.altitude_meters = 10.1;
+    invalid.altitude_meters = 20.1;
+    assert(!performance::isValid(invalid, &error));
+    invalid = options;
+    invalid.site_altitude_limit_meters = 20.1;
+    assert(!performance::isValid(invalid, &error));
+    invalid = options;
+    invalid.altitude_meters = 11.0;
+    invalid.site_altitude_limit_meters = 10.0;
     assert(!performance::isValid(invalid, &error));
     invalid = options;
     invalid.site_radius_meters = 4.5;
+    assert(!performance::isValid(invalid, &error));
+    invalid = options;
+    invalid.site_radius_meters = 20.1;
     assert(!performance::isValid(invalid, &error));
     invalid = options;
     invalid.speed_meters_per_second = 2.1;

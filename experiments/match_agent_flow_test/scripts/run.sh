@@ -10,6 +10,14 @@ lock_file="/run/lock/match_agent_flow_test.lock"
 run_id="$(date +%Y%m%d-%H%M%S)"
 mode="dry-run"
 
+source_tree_digest() {
+    {
+        printf '%s\0' "$root_dir/CMakeLists.txt"
+        find "$root_dir/src" -maxdepth 1 -type f \
+            \( -name '*.cpp' -o -name '*.hpp' \) -print0 | sort -z
+    } | xargs -0 sha256sum | sha256sum | awk '{print $1}'
+}
+
 for arg in "$@"; do
     case "$arg" in
         --execute) mode="execute" ;;
@@ -24,6 +32,19 @@ done
 
 if [[ ! -x "$binary" ]]; then
     echo "[launcher] binary is missing; run scripts/build.sh first" >&2
+    exit 2
+fi
+
+source_digest_file="$root_dir/build/source-tree.sha256"
+if [[ ! -r "$source_digest_file" ]]; then
+    echo "[launcher] build provenance is missing; run scripts/build.sh first" >&2
+    exit 2
+fi
+expected_source_digest="$(tr -d '[:space:]' < "$source_digest_file")"
+current_source_digest="$(source_tree_digest)"
+if [[ -z "$expected_source_digest" ||
+      "$expected_source_digest" != "$current_source_digest" ]]; then
+    echo "[launcher] source changed after the last verified build; run scripts/build.sh first" >&2
     exit 2
 fi
 
