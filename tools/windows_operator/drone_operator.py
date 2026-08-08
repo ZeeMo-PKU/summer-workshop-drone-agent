@@ -565,7 +565,7 @@ def run_performance(environment: str, altitude: float) -> int:
     return run_foreground(command)
 
 
-def run_match(dry_run: bool) -> int:
+def run_match(dry_run: bool, use_simulation_oracle: bool = False) -> int:
     if dry_run:
         ensure_no_controllers("启动只读监听")
         ensure_build_current("match")
@@ -580,10 +580,14 @@ def run_match(dry_run: bool) -> int:
     try:
         proxy.start("https://openrouter.ai/")
         print("Qwen 识图网络已准备，正在启动 Codex 比赛程序。")
+        oracle_environment = (
+            "IKING_ALLOW_SIM_ORACLE=1 " if use_simulation_oracle else ""
+        )
         command = (
             "cd /opt/iking/match_agent_flow_test && "
             f"HTTPS_PROXY=http://127.0.0.1:{REMOTE_PROXY_PORT} "
             f"HTTP_PROXY=http://127.0.0.1:{REMOTE_PROXY_PORT} "
+            f"{oracle_environment}"
             "exec ./scripts/run.sh --execute"
         )
         return run_foreground(command)
@@ -691,6 +695,7 @@ def build_parser() -> argparse.ArgumentParser:
             "test-sim",
             "test-real",
             "match-sim",
+            "match-demo-sim",
             "match-dry",
             "match-first",
             "match-next",
@@ -746,6 +751,8 @@ def main() -> int:
         return run_performance("real", args.altitude)
     if args.action == "match-sim":
         return run_match(False)
+    if args.action == "match-demo-sim":
+        return run_match(False, use_simulation_oracle=True)
     if args.action == "match-dry":
         return run_match(True)
     if args.action == "match-first":

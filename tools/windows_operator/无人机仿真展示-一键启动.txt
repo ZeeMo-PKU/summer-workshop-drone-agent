@@ -1,0 +1,23 @@
+无人机仿真客户展示
+==================
+
+用途：
+在裁判系统的仿真场景中展示完整比赛航迹。网页中的仿真题图不会出现在
+无人机实体摄像头里，因此本命令使用裁判系统随题目附带的仿真答案。
+它不会代替真实比赛识图，也不能在实飞模式下启动。
+
+第一步：确认并切换到仿真模式
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" set-sim
+
+第二步：启动仿真展示程序（保持这个 CMD 窗口打开）
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" match-demo-sim
+
+第三步：打开裁判页面 http://127.0.0.1:18080/，点击“比赛开始”。
+
+需要停止时，另开一个 CMD 窗口运行：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" stop-match
+
+真实 Qwen 识图验证仍使用：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" match-sim
+
+注意：match-demo-sim 只用于仿真客户展示，不能作为真实识图测试结果。

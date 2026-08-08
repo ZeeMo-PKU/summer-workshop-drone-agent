@@ -14,6 +14,7 @@ class ArgumentTests(unittest.TestCase):
             "set-sim",
             "set-real",
             "match-sim",
+            "match-demo-sim",
             "match-dry",
             "match-first",
             "match-next",
@@ -151,6 +152,26 @@ class CommandTests(unittest.TestCase):
         proxy_close.assert_called_once()
         self.assertIn("./scripts/run.sh --execute", foreground.call_args.args[0])
         self.assertIn("HTTPS_PROXY=http://127.0.0.1:18088", foreground.call_args.args[0])
+        self.assertNotIn("IKING_ALLOW_SIM_ORACLE=1", foreground.call_args.args[0])
+
+    @mock.patch.object(drone_operator.ProxyTunnel, "close")
+    @mock.patch.object(drone_operator.ProxyTunnel, "start")
+    @mock.patch.object(drone_operator, "run_foreground", return_value=0)
+    @mock.patch.object(drone_operator, "ensure_build_current")
+    @mock.patch.object(drone_operator, "preflight")
+    def test_match_demo_sim_uses_explicit_simulation_oracle(
+        self, preflight, build, foreground, proxy_start, proxy_close
+    ):
+        self.assertEqual(
+            drone_operator.run_match(False, use_simulation_oracle=True), 0
+        )
+        preflight.assert_called_once_with("sim")
+        build.assert_called_once_with("match")
+        proxy_start.assert_called_once_with("https://openrouter.ai/")
+        proxy_close.assert_called_once()
+        self.assertIn(
+            "IKING_ALLOW_SIM_ORACLE=1", foreground.call_args.args[0]
+        )
 
     @mock.patch.object(drone_operator, "run_foreground", return_value=0)
     @mock.patch.object(drone_operator, "ensure_build_current")
