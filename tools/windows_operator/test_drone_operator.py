@@ -50,6 +50,34 @@ class ArgumentTests(unittest.TestCase):
                 drone_operator.parse_arguments(["status", "7"])
 
 
+class GroundStateTests(unittest.TestCase):
+    def make_status(self, *, altitude=11.0, relative_altitude=0.0):
+        return {
+            "flight_path": "STANDBY",
+            "armed": False,
+            "sdk_mode": True,
+            "position": {
+                "altitude": altitude,
+                "relative_dock_altitude": relative_altitude,
+            },
+        }
+
+    def test_ground_check_uses_relative_altitude(self):
+        self.assertTrue(drone_operator.is_ground_ready(self.make_status()))
+
+    def test_ground_check_rejects_nonzero_relative_altitude(self):
+        self.assertFalse(
+            drone_operator.is_ground_ready(
+                self.make_status(relative_altitude=0.5)
+            )
+        )
+
+    def test_ground_check_falls_back_to_absolute_altitude(self):
+        status = self.make_status(altitude=0.0)
+        del status["position"]["relative_dock_altitude"]
+        self.assertTrue(drone_operator.is_ground_ready(status))
+
+
 class CommandTests(unittest.TestCase):
     @mock.patch.object(drone_operator, "run_remote")
     @mock.patch.object(drone_operator, "build_status")

@@ -206,13 +206,23 @@ def ensure_no_controllers(purpose: str = "启动") -> None:
         raise RuntimeError(f"已有控制程序运行，不能{purpose}：{names}")
 
 
+def relative_ground_altitude(position: dict) -> float:
+    value = position.get("relative_dock_altitude")
+    if value is None:
+        value = position.get("altitude", 999)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 999.0
+
+
 def is_ground_ready(status: dict) -> bool:
     position = status.get("position") or {}
     return (
         str(status.get("flight_path", "")).startswith("STANDBY")
         and status.get("armed") is False
         and status.get("sdk_mode") is True
-        and abs(float(position.get("altitude", 999))) <= 0.10
+        and abs(relative_ground_altitude(position)) <= 0.10
     )
 
 
@@ -271,7 +281,11 @@ def show_status() -> int:
         f"RTK={navigation.get('rtk_status', '未知')}，"
         f"卫星={navigation.get('satellite_count', '未知')}"
     )
-    print(f"当前高度：{position.get('altitude', '未知')} 米")
+    print(f"当前绝对高度：{position.get('altitude', '未知')} 米")
+    print(
+        "相对起降点高度："
+        f"{position.get('relative_dock_altitude', '未知')} 米"
+    )
     print("\n完整状态：")
     print(json.dumps(status, ensure_ascii=False, indent=2))
     controllers = list_controllers()
@@ -369,7 +383,9 @@ def preflight(expected_environment: str) -> None:
 
     status = read_remote_json(STATUS_COMMAND, "无人机状态")
     if not is_ground_ready(status):
-        raise RuntimeError("启动前检查失败：必须落地待机、未解锁、高度为 0 且处于 SDK 模式")
+        raise RuntimeError(
+            "启动前检查失败：必须落地待机、未解锁、相对起降点高度为 0 且处于 SDK 模式"
+        )
 
     if expected_environment == "real":
         navigation = status.get("navigation") or {}
@@ -388,10 +404,10 @@ def mode_switch_preflight() -> None:
     on_ground = (
         str(status.get("flight_path", "")).startswith("STANDBY")
         and status.get("armed") is False
-        and abs(float(position.get("altitude", 999))) <= 0.10
+        and abs(relative_ground_altitude(position)) <= 0.10
     )
     if not on_ground:
-        raise RuntimeError("切换模式前必须落地待机、未解锁且高度为 0")
+        raise RuntimeError("切换模式前必须落地待机、未解锁且相对起降点高度为 0")
 
 
 def set_environment(environment: str) -> int:
