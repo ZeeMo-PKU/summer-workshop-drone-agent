@@ -4,11 +4,14 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 binary="$root_dir/build/match_flow"
 status_command="/opt/iking/match_agent/codex/drone-status"
-simulation_command="$root_dir/scripts/check-simulation.py"
+parameter_reader="/opt/iking/portable_performance_test/scripts/read-parameter.py"
 gimbal_verification_file="$root_dir/.gimbal-preset-verified"
 lock_file="/run/lock/match_agent_flow_test.lock"
 run_id="$(date +%Y%m%d-%H%M%S)"
 mode="dry-run"
+environment=""
+site_clear=0
+battery_ready=0
 
 source_tree_digest() {
     {
@@ -18,13 +21,34 @@ source_tree_digest() {
     } | xargs -0 sha256sum | sha256sum | awk '{print $1}'
 }
 
-for arg in "$@"; do
-    case "$arg" in
-        --execute) mode="execute" ;;
-        --dry-run) mode="dry-run" ;;
-        --help|-h) exec "$binary" --help ;;
+while (($#)); do
+    case "$1" in
+        --execute)
+            mode="execute"
+            shift
+            ;;
+        --dry-run)
+            mode="dry-run"
+            shift
+            ;;
+        --environment)
+            [[ $# -ge 2 ]] || { echo "--environment needs sim or real" >&2; exit 2; }
+            environment="$2"
+            shift 2
+            ;;
+        --confirm-site-clear)
+            site_clear=1
+            shift
+            ;;
+        --confirm-battery-ready)
+            battery_ready=1
+            shift
+            ;;
+        --help|-h)
+            exec "$binary" --help
+            ;;
         *)
-            echo "[launcher] unsupported argument: $arg" >&2
+            echo "[launcher] unsupported argument: $1" >&2
             exit 2
             ;;
     esac
@@ -64,7 +88,8 @@ controller_processes() {
             /opt/iking/match_agent/match|/opt/iking/match_agent/match_*|\
             /opt/iking/match_agent_flow_test/build/match_flow|\
             /opt/iking/match_agent_flow_test/build/gimbal_probe|\
-            /opt/iking/match_agent_flow_test/build/recovery_return)
+            /opt/iking/match_agent_flow_test/build/recovery_return|\
+            /opt/iking/portable_performance_test/build/portable_performance_test)
                 printf '%s %s\n' "$pid" "$executable"
                 ;;
         esac
@@ -78,6 +103,18 @@ if [[ -n "$(controller_processes)" ]]; then
 fi
 
 if [[ "$mode" == "execute" ]]; then
+    if [[ "$environment" != "sim" && "$environment" != "real" ]]; then
+        echo "[launcher] --execute requires --environment sim or real" >&2
+        exit 5
+    fi
+    if [[ "$site_clear" != 1 ]]; then
+        echo "[launcher] --confirm-site-clear is required" >&2
+        exit 5
+    fi
+    if [[ "$environment" == "real" && "$battery_ready" != 1 ]]; then
+        echo "[launcher] real flight requires --confirm-battery-ready" >&2
+        exit 5
+    fi
     if [[ ! -r "$root_dir/.secrets.env" ]]; then
         echo "[launcher] missing $root_dir/.secrets.env" >&2
         exit 5
@@ -88,8 +125,14 @@ if [[ "$mode" == "execute" ]]; then
         # shellcheck disable=SC1091
         source "$root_dir/.vision.env"
     fi
-    if [[ "${IKING_SIMULATION_CONFIRMED:-}" != "1" ]]; then
+    if [[ "$environment" == "sim" &&
+          "${IKING_SIMULATION_CONFIRMED:-}" != "1" ]]; then
         echo "[launcher] simulation has not been explicitly confirmed" >&2
+        exit 6
+    fi
+    if [[ "$environment" == "real" &&
+          "${IKING_REAL_FLIGHT_CONFIRMED:-}" != "1" ]]; then
+        echo "[launcher] real flight has not been explicitly confirmed" >&2
         exit 6
     fi
     if [[ -n "${VISION_API_URL:-}${VISION_MODEL:-}" ]]; then
@@ -117,33 +160,48 @@ if [[ "$mode" == "execute" ]]; then
         echo "[launcher] drone-status is unavailable" >&2
         exit 8
     fi
-    if [[ ! -x "$simulation_command" ]]; then
-        echo "[launcher] simulation parameter checker is unavailable" >&2
+    if [[ ! -x "$parameter_reader" ]]; then
+        echo "[launcher] flight-mode parameter reader is unavailable" >&2
         exit 8
     fi
 
-    if ! simulation_json="$($simulation_command)"; then
-        echo "[launcher] CFG_FLIGHTSIM is not confirmed as simulation" >&2
+    mode_json="$($parameter_reader CFG_FLIGHTSIM)"
+    mode_value="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["integer"])' <<<"$mode_json")"
+    if [[ "$environment" == "sim" && "$mode_value" != "1" ]] ||
+       [[ "$environment" == "real" && "$mode_value" != "0" ]]; then
+        echo "[launcher] CFG_FLIGHTSIM=$mode_value does not match $environment" >&2
         exit 9
     fi
-    echo "[launcher] $simulation_json"
+    echo "[launcher] $mode_json"
 
     status_json="$($status_command)"
     if ! printf '%s' "$status_json" | python3 -c '
 import json, sys
 s = json.load(sys.stdin)
+environment = sys.argv[1]
+position = s.get("position") or {}
+relative_altitude = position.get("relative_dock_altitude")
+if relative_altitude is None:
+    relative_altitude = position.get("altitude", 999)
+speed = s.get("speed") or {}
 ok = (
     str(s.get("flight_path", "")).startswith("STANDBY")
     and s.get("armed") is False
     and s.get("sdk_mode") is True
-    and abs(float(s.get("position", {}).get("altitude", 999))) <= 0.10
+    and abs(float(relative_altitude)) <= 0.10
+    and abs(float(speed.get("total", 999))) <= 0.10
 )
+if environment == "real":
+    navigation = s.get("navigation") or {}
+    ok = ok and int(navigation.get("rtk_status", 0)) >= 4
+    ok = ok and int(navigation.get("satellite_count", 0)) >= 10
 raise SystemExit(0 if ok else 1)
-'; then
-        echo "[launcher] preflight requires STANDBY, armed=false, sdk_mode=true, altitude<=0.10" >&2
+' "$environment"; then
+        echo "[launcher] ground, mode, motion, or real-flight navigation preflight failed" >&2
         printf '%s\n' "$status_json" >&2
         exit 10
     fi
+    export IKING_MATCH_ENVIRONMENT="$environment"
 fi
 
 child_pid=""

@@ -54,14 +54,21 @@ struct GroundTelemetryCheck {
     bool armed = true;
     bool sdk_mode = false;
     double altitude = 0.0;
+    bool speed_valid = false;
+    double horizontal_speed = 0.0;
+    double vertical_speed = 0.0;
 };
 
 inline bool isGroundReady(const GroundTelemetryCheck& telemetry,
-                          double altitude_tolerance) {
+                          double speed_tolerance) {
     return telemetry.valid && telemetry.fresh &&
            telemetry.flight_state_valid && !telemetry.armed &&
            telemetry.sdk_mode && std::isfinite(telemetry.altitude) &&
-           std::abs(telemetry.altitude) <= altitude_tolerance;
+           telemetry.speed_valid &&
+           std::isfinite(telemetry.horizontal_speed) &&
+           std::isfinite(telemetry.vertical_speed) &&
+           std::abs(telemetry.horizontal_speed) <= speed_tolerance &&
+           std::abs(telemetry.vertical_speed) <= speed_tolerance;
 }
 
 inline bool isAltitudeWithinEnvelope(double altitude,

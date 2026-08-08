@@ -184,11 +184,17 @@ import json
 import sys
 environment = sys.argv[1]
 s = json.load(sys.stdin)
+position = s.get("position") or {}
+relative_altitude = position.get("relative_dock_altitude")
+if relative_altitude is None:
+    relative_altitude = position.get("altitude", 999)
+speed = s.get("speed") or {}
 ok = (
     str(s.get("flight_path", "")).startswith("STANDBY")
     and s.get("armed") is False
     and s.get("sdk_mode") is True
-    and abs(float(s.get("position", {}).get("altitude", 999))) <= 0.10
+    and abs(float(relative_altitude)) <= 0.10
+    and abs(float(speed.get("total", 999))) <= 0.10
     and not s.get("control_processes")
 )
 if environment == "real":

@@ -42,8 +42,8 @@ using namespace std::chrono_literals;
 
 namespace {
 
-constexpr float kMissionAltitude = 7.0f;
-constexpr float kTakeoffHeight = kMissionAltitude;
+constexpr float kTaskZoneRelativeAltitude = 0.3f;
+constexpr float kTakeoffHeight = kTaskZoneRelativeAltitude;
 constexpr int kRpcTimeoutMs = 5000;
 
 // 题目区使用前向相机；答题区使用吊舱可见光相机。
@@ -102,6 +102,7 @@ constexpr auto kTelemetryFreshnessLimit = 3s;
 constexpr auto kGroundTelemetryWait = 5s;
 constexpr double kAltitudeToleranceMeters = 0.20;
 constexpr double kGroundAltitudeToleranceMeters = 0.10;
+constexpr double kGroundSpeedToleranceMetersPerSecond = 0.10;
 
 struct RefereeEvent {
     std::string request_id;
@@ -118,6 +119,9 @@ struct PositionSnapshot {
     bool armed = true;
     bool sdk_mode = false;
     bool flight_state_valid = false;
+    bool speed_valid = false;
+    double horizontal_speed = 0.0;
+    double vertical_speed = 0.0;
     std::string flight_path;
     std::chrono::steady_clock::time_point updated_at{};
 };
@@ -476,6 +480,7 @@ void onStatus(const std::string& json, void*) {
     const Json::Value& flight = data["flight"];
     const Json::Value& position = flight["positionStatus"];
     const Json::Value& attitude = flight["attitude"];
+    const Json::Value& speed = flight["speed"];
     if (!position.isObject() ||
         !position["latitude"].isNumeric() ||
         !position["longitude"].isNumeric() ||
@@ -497,6 +502,15 @@ void onStatus(const std::string& json, void*) {
     if (snapshot.flight_state_valid) {
         snapshot.armed = flight["isArmed"].asBool();
         snapshot.sdk_mode = flight["sdkMode"].asBool();
+    }
+    snapshot.speed_valid = speed.isObject() &&
+                           speed["x"].isNumeric() &&
+                           speed["y"].isNumeric() &&
+                           speed["z"].isNumeric();
+    if (snapshot.speed_valid) {
+        snapshot.horizontal_speed = std::hypot(
+            speed["x"].asDouble(), speed["y"].asDouble());
+        snapshot.vertical_speed = speed["z"].asDouble();
     }
     snapshot.flight_path = data.get("flightPath", "").asString();
     snapshot.updated_at = std::chrono::steady_clock::now();
@@ -522,6 +536,9 @@ void onStatus(const std::string& json, void*) {
     record["armed"] = snapshot.armed;
     record["sdk_mode"] = snapshot.sdk_mode;
     record["flight_state_valid"] = snapshot.flight_state_valid;
+    record["speed_valid"] = snapshot.speed_valid;
+    record["horizontal_speed"] = snapshot.horizontal_speed;
+    record["vertical_speed"] = snapshot.vertical_speed;
     record["flight_path"] = snapshot.flight_path;
     appendJsonLine(g_telemetry_log, record);
 }
@@ -544,6 +561,9 @@ flow::GroundTelemetryCheck groundTelemetryCheck(
         snapshot.armed,
         snapshot.sdk_mode,
         snapshot.altitude,
+        snapshot.speed_valid,
+        snapshot.horizontal_speed,
+        snapshot.vertical_speed,
     };
 }
 
@@ -556,7 +576,8 @@ bool waitForGroundTelemetry(const char* context) {
         valid = latestPosition(latest);
         const auto check = groundTelemetryCheck(
             latest, valid, std::chrono::steady_clock::now());
-        if (flow::isGroundReady(check, kGroundAltitudeToleranceMeters)) {
+        if (flow::isGroundReady(
+                check, kGroundSpeedToleranceMetersPerSecond)) {
             return true;
         }
         std::this_thread::sleep_for(100ms);
@@ -571,7 +592,11 @@ bool waitForGroundTelemetry(const char* context) {
           (check.flight_state_valid ? "true" : "false") + " armed=" +
           (check.armed ? "true" : "false") + " sdk_mode=" +
           (check.sdk_mode ? "true" : "false") + " altitude=" +
-          std::to_string(check.altitude) + " flight_path=" +
+          std::to_string(check.altitude) + " speed_valid=" +
+          (check.speed_valid ? "true" : "false") +
+          " horizontal_speed=" + std::to_string(check.horizontal_speed) +
+          " vertical_speed=" + std::to_string(check.vertical_speed) +
+          " flight_path=" +
           latest.flight_path);
     return false;
 }
@@ -679,7 +704,7 @@ bool takeOffAfterGripperClosed(iking::drone::Client& client) {
         return false;
     }
 
-    if (!isOk(client.takeOff(kTakeoffHeight, kRpcTimeoutMs), "takeOff(7.0m)")) {
+    if (!isOk(client.takeOff(kTakeoffHeight, kRpcTimeoutMs), "takeOff(0.3m)")) {
         return false;
     }
     g_flight_commanded_by_process.store(true);
@@ -893,7 +918,7 @@ bool flyToFieldAndHover(
     if (!portable_site::isLocalTargetWithinEnvelope(
             field_x,
             field_z,
-            kMissionAltitude,
+            kTaskZoneRelativeAltitude,
             kPortableHorizontalRadiusMeters,
             kPortableMaximumAltitudeMeters)) {
         print(std::string("[portable-site] local target outside envelope: ") +
@@ -904,7 +929,7 @@ bool flyToFieldAndHover(
         *g_site_anchor,
         field_x,
         field_z,
-        kMissionAltitude,
+        kTaskZoneRelativeAltitude,
         kMatchYawOffsetDegrees);
     return flyToAndHover(
         client,
@@ -1024,7 +1049,7 @@ bool returnHomeWithSdk(iking::drone::Client& client,
         *g_site_anchor,
         kStartFieldX,
         kStartFieldZ,
-        kMissionAltitude,
+        kTaskZoneRelativeAltitude,
         kMatchYawOffsetDegrees);
 
     constexpr auto kReturnTimeout = 180s;
@@ -1119,7 +1144,7 @@ bool returnHomeWithSdk(iking::drone::Client& client,
                                            static_cast<float>(
                                                start_target.yaw_degrees),
                                            kRpcTimeoutMs),
-                                       "returnToAnyPosition(start,7.0m)");
+                                       "returnToAnyPosition(start,0.3m)");
             if (!accepted) {
                 if (++failed_return_commands >= 3) {
                     print("[return] targeted return failed three times");
@@ -1596,12 +1621,16 @@ bool initializeArtifacts(const Options& options) {
             : recognize::kDefaultModelName;
     metadata["mapping_mode"] = "semantic-answer-plus-recognized-layout";
     metadata["resident_process"] = true;
+    metadata["environment"] =
+        std::getenv("IKING_MATCH_ENVIRONMENT")
+            ? std::getenv("IKING_MATCH_ENVIRONMENT")
+            : "dry-run";
     metadata["portable_site_mode"] = true;
     metadata["portable_horizontal_radius_meters"] =
         kPortableHorizontalRadiusMeters;
     metadata["portable_maximum_relative_altitude_meters"] =
         kPortableMaximumAltitudeMeters;
-    metadata["mission_altitude_meters"] = kMissionAltitude;
+    metadata["mission_altitude_meters"] = kTaskZoneRelativeAltitude;
     metadata["portable_anchor_source"] =
         "first-round ground position and aircraft yaw";
     metadata["scene_schedule"] = "MATCH_STARTED:B;NEXT_ROUND_STARTED:A/B alternating";

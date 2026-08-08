@@ -11,6 +11,12 @@ int main() {
     assert(options.site_altitude_limit_meters == 20.0);
     assert(performance::maximumPlannedRadius(options) > 4.24);
     assert(performance::maximumPlannedRadius(options) < 4.25);
+    assert(performance::isStationaryGroundTelemetry(
+        true, true, false, true, true, 0.0, 0.0));
+    assert(!performance::isStationaryGroundTelemetry(
+        true, true, true, true, true, 0.0, 0.0));
+    assert(!performance::isStationaryGroundTelemetry(
+        true, true, false, true, true, 0.11, 0.0));
 
     const auto plan = performance::makeSquarePlan(options);
     assert(plan.size() == 24);

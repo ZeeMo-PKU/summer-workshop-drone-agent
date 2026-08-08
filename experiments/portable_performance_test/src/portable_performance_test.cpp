@@ -800,9 +800,14 @@ bool groundPreflight(iking::drone::Client& client) {
     const auto deadline = std::chrono::steady_clock::now() + 5s;
     while (std::chrono::steady_clock::now() < deadline) {
         PositionSnapshot latest;
-        if (freshPosition(latest) && latest.heading_valid &&
-            latest.flight_state_valid && !latest.armed && latest.sdk_mode &&
-            std::abs(latest.altitude) <= kGroundAltitudeToleranceMeters) {
+        if (freshPosition(latest) && performance::isStationaryGroundTelemetry(
+                latest.heading_valid,
+                latest.flight_state_valid,
+                latest.armed,
+                latest.sdk_mode,
+                latest.speed_valid,
+                latest.horizontal_speed,
+                latest.vertical_speed)) {
             {
                 std::lock_guard<std::mutex> lock(g_metrics_mutex);
                 g_launch = latest;

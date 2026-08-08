@@ -32,6 +32,20 @@ inline double maximumPlannedRadius(const Options& options) {
     return std::sqrt(2.0) * options.leg_meters;
 }
 
+inline bool isStationaryGroundTelemetry(bool heading_valid,
+                                        bool flight_state_valid,
+                                        bool armed,
+                                        bool sdk_mode,
+                                        bool speed_valid,
+                                        double horizontal_speed,
+                                        double vertical_speed) {
+    return heading_valid && flight_state_valid && !armed && sdk_mode &&
+           speed_valid && std::isfinite(horizontal_speed) &&
+           std::isfinite(vertical_speed) &&
+           std::abs(horizontal_speed) <= 0.10 &&
+           std::abs(vertical_speed) <= 0.10;
+}
+
 inline bool isValid(const Options& options, std::string* error = nullptr) {
     const auto fail = [error](const char* message) {
         if (error) *error = message;

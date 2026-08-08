@@ -19,6 +19,13 @@ target_link_libraries(portable_performance_test PRIVATE
 target_compile_options(portable_performance_test PRIVATE
     -Wall -Wextra -Wpedantic)
 
+add_executable(gripper_control src/gripper_control.cpp)
+target_link_libraries(gripper_control PRIVATE
+    PkgConfig::DRONE_SDK
+    pthread)
+target_compile_options(gripper_control PRIVATE
+    -Wall -Wextra -Wpedantic)
+
 add_executable(performance_plan_test tests/performance_plan_test.cpp)
 target_include_directories(performance_plan_test PRIVATE src)
 target_compile_options(performance_plan_test PRIVATE

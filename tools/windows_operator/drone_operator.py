@@ -80,6 +80,7 @@ BUILD_TARGETS = {
             "/opt/iking/portable_performance_test/CMakeLists.txt",
             "/opt/iking/portable_performance_test/src/portable_performance_test.cpp",
             "/opt/iking/portable_performance_test/src/performance_plan.hpp",
+            "/opt/iking/portable_performance_test/src/gripper_control.cpp",
             "/opt/iking/portable_performance_test/tests/performance_plan_test.cpp",
         ],
     },
@@ -565,7 +566,35 @@ def run_performance(environment: str, altitude: float) -> int:
     return run_foreground(command)
 
 
-def run_match(dry_run: bool, use_simulation_oracle: bool = False) -> int:
+def run_real_demo() -> int:
+    set_environment("real")
+    print("实飞模式与地面状态已复查，开始 3 米客户展示流程。")
+    return run_performance("real", 3.0)
+
+
+def close_gripper() -> int:
+    ensure_no_controllers("闭合夹爪")
+    status = read_remote_json(STATUS_COMMAND, "无人机状态")
+    if not is_ground_ready(status):
+        raise RuntimeError("闭合夹爪前必须落地待机、未解锁且保持静止")
+    ensure_build_current("test")
+    result = run_remote(
+        "/opt/iking/portable_performance_test/build/gripper_control --close",
+        capture=True,
+    )
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "夹爪闭合命令被 SDK 拒绝"
+        raise RuntimeError(detail)
+    return 0
+
+
+def run_match(
+    dry_run: bool,
+    environment: str = "sim",
+    use_simulation_oracle: bool = False,
+) -> int:
     if dry_run:
         ensure_no_controllers("启动只读监听")
         ensure_build_current("match")
@@ -574,7 +603,9 @@ def run_match(dry_run: bool, use_simulation_oracle: bool = False) -> int:
             "exec ./scripts/run.sh --dry-run"
         )
 
-    preflight("sim")
+    if use_simulation_oracle and environment != "sim":
+        raise RuntimeError("仿真真值只能用于仿真模式")
+    preflight(environment)
     ensure_build_current("match")
     proxy = ProxyTunnel()
     try:
@@ -583,16 +614,30 @@ def run_match(dry_run: bool, use_simulation_oracle: bool = False) -> int:
         oracle_environment = (
             "IKING_ALLOW_SIM_ORACLE=1 " if use_simulation_oracle else ""
         )
+        real_confirmation = (
+            "IKING_REAL_FLIGHT_CONFIRMED=1 " if environment == "real" else ""
+        )
+        battery_confirmation = (
+            " --confirm-battery-ready" if environment == "real" else ""
+        )
         command = (
             "cd /opt/iking/match_agent_flow_test && "
             f"HTTPS_PROXY=http://127.0.0.1:{REMOTE_PROXY_PORT} "
             f"HTTP_PROXY=http://127.0.0.1:{REMOTE_PROXY_PORT} "
             f"{oracle_environment}"
-            "exec ./scripts/run.sh --execute"
+            f"{real_confirmation}"
+            f"exec ./scripts/run.sh --execute --environment {environment} "
+            f"--confirm-site-clear{battery_confirmation}"
         )
         return run_foreground(command)
     finally:
         proxy.close()
+
+
+def run_real_match() -> int:
+    set_environment("real")
+    print("实飞模式与地面状态已复查，启动 Codex 比赛程序并等待首轮事件。")
+    return run_match(False, environment="real")
 
 
 def run_classmate(environment: str, dry_run: bool) -> int:
@@ -694,7 +739,10 @@ def build_parser() -> argparse.ArgumentParser:
             "set-real",
             "test-sim",
             "test-real",
+            "demo-real",
+            "gripper-close",
             "match-sim",
+            "match-real",
             "match-demo-sim",
             "match-dry",
             "match-first",
@@ -749,8 +797,14 @@ def main() -> int:
         return run_performance("sim", args.altitude)
     if args.action == "test-real":
         return run_performance("real", args.altitude)
+    if args.action == "demo-real":
+        return run_real_demo()
+    if args.action == "gripper-close":
+        return close_gripper()
     if args.action == "match-sim":
         return run_match(False)
+    if args.action == "match-real":
+        return run_real_match()
     if args.action == "match-demo-sim":
         return run_match(False, use_simulation_oracle=True)
     if args.action == "match-dry":

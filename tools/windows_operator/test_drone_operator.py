@@ -14,7 +14,10 @@ class ArgumentTests(unittest.TestCase):
             "set-sim",
             "set-real",
             "match-sim",
+            "match-real",
             "match-demo-sim",
+            "demo-real",
+            "gripper-close",
             "match-dry",
             "match-first",
             "match-next",
@@ -133,6 +136,31 @@ class CommandTests(unittest.TestCase):
         self.assertIn("--altitude 20", command)
         self.assertIn("--confirm-battery-ready", command)
 
+    @mock.patch.object(drone_operator, "run_performance", return_value=0)
+    @mock.patch.object(drone_operator, "set_environment", return_value=0)
+    def test_real_demo_switches_mode_then_runs_fixed_route(
+        self, set_environment, run_performance
+    ):
+        self.assertEqual(drone_operator.run_real_demo(), 0)
+        set_environment.assert_called_once_with("real")
+        run_performance.assert_called_once_with("real", 3.0)
+
+    @mock.patch.object(drone_operator, "run_remote")
+    @mock.patch.object(drone_operator, "ensure_build_current")
+    @mock.patch.object(drone_operator, "read_remote_json")
+    @mock.patch.object(drone_operator, "ensure_no_controllers")
+    def test_gripper_close_uses_ground_only_helper(
+        self, no_controllers, read_status, build, run_remote
+    ):
+        read_status.return_value = GroundStateTests().make_status()
+        run_remote.return_value.returncode = 0
+        run_remote.return_value.stdout = "accepted"
+        run_remote.return_value.stderr = ""
+        self.assertEqual(drone_operator.close_gripper(), 0)
+        no_controllers.assert_called_once_with("闭合夹爪")
+        build.assert_called_once_with("test")
+        self.assertIn("gripper_control --close", run_remote.call_args.args[0])
+
     def test_performance_rejects_out_of_range_height(self):
         with self.assertRaisesRegex(RuntimeError, "1 到 20"):
             drone_operator.run_performance("sim", 20.1)
@@ -151,8 +179,43 @@ class CommandTests(unittest.TestCase):
         proxy_start.assert_called_once_with("https://openrouter.ai/")
         proxy_close.assert_called_once()
         self.assertIn("./scripts/run.sh --execute", foreground.call_args.args[0])
+        self.assertIn("--environment sim", foreground.call_args.args[0])
         self.assertIn("HTTPS_PROXY=http://127.0.0.1:18088", foreground.call_args.args[0])
         self.assertNotIn("IKING_ALLOW_SIM_ORACLE=1", foreground.call_args.args[0])
+
+    @mock.patch.object(drone_operator.ProxyTunnel, "close")
+    @mock.patch.object(drone_operator.ProxyTunnel, "start")
+    @mock.patch.object(drone_operator, "run_foreground", return_value=0)
+    @mock.patch.object(drone_operator, "ensure_build_current")
+    @mock.patch.object(drone_operator, "preflight")
+    def test_match_real_requires_real_preflight_and_explicit_confirmation(
+        self, preflight, build, foreground, proxy_start, proxy_close
+    ):
+        self.assertEqual(
+            drone_operator.run_match(False, environment="real"), 0
+        )
+        preflight.assert_called_once_with("real")
+        build.assert_called_once_with("match")
+        proxy_start.assert_called_once_with("https://openrouter.ai/")
+        proxy_close.assert_called_once()
+        command = foreground.call_args.args[0]
+        self.assertIn("IKING_REAL_FLIGHT_CONFIRMED=1", command)
+        self.assertIn("--environment real", command)
+        self.assertIn("--confirm-battery-ready", command)
+        self.assertNotIn("IKING_ALLOW_SIM_ORACLE=1", command)
+
+    def test_match_real_rejects_simulation_oracle(self):
+        with self.assertRaisesRegex(RuntimeError, "仿真真值"):
+            drone_operator.run_match(
+                False, environment="real", use_simulation_oracle=True
+            )
+
+    @mock.patch.object(drone_operator, "run_match", return_value=0)
+    @mock.patch.object(drone_operator, "set_environment", return_value=0)
+    def test_real_match_switches_mode_before_starting(self, set_mode, run_match):
+        self.assertEqual(drone_operator.run_real_match(), 0)
+        set_mode.assert_called_once_with("real")
+        run_match.assert_called_once_with(False, environment="real")
 
     @mock.patch.object(drone_operator.ProxyTunnel, "close")
     @mock.patch.object(drone_operator.ProxyTunnel, "start")

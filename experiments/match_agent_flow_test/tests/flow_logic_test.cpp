@@ -81,7 +81,7 @@ int main() {
         ReturnAction::Wait, false, 0.0));
 
     const GroundTelemetryCheck ground_ready{
-        true, true, true, false, true, 0.04};
+        true, true, true, false, true, 11.0, true, 0.0, 0.0};
     assert(isGroundReady(ground_ready, 0.10));
     auto unsafe_ground = ground_ready;
     unsafe_ground.valid = false;
@@ -99,8 +99,9 @@ int main() {
     unsafe_ground.sdk_mode = false;
     assert(!isGroundReady(unsafe_ground, 0.10));
     unsafe_ground = ground_ready;
-    unsafe_ground.altitude = 0.11;
+    unsafe_ground.horizontal_speed = 0.11;
     assert(!isGroundReady(unsafe_ground, 0.10));
+    unsafe_ground.horizontal_speed = 0.0;
     unsafe_ground.altitude = std::numeric_limits<double>::quiet_NaN();
     assert(!isGroundReady(unsafe_ground, 0.10));
 
@@ -123,17 +124,17 @@ int main() {
     };
     assert(portable_site::isValidAnchor(anchor));
     assert(portable_site::isLocalTargetWithinEnvelope(
-        5.4, -2.97, 7.0, 20.0, 20.0));
+        5.4, -2.97, 0.3, 20.0, 20.0));
     assert(!portable_site::isLocalTargetWithinEnvelope(
-        20.01, 0.0, 7.0, 20.0, 20.0));
+        20.01, 0.0, 0.3, 20.0, 20.0));
     assert(!portable_site::isLocalTargetWithinEnvelope(
         0.0, 0.0, 20.01, 20.0, 20.0));
 
     const auto scene_b = portable_site::targetFromField(
-        anchor, 5.4, 0.0, 7.0, 180.0);
+        anchor, 5.4, 0.0, 0.3, 180.0);
     assert(std::abs(scene_b.latitude - anchor.latitude) < 1e-9);
     assert(std::abs(scene_b.longitude - 119.7137305) < 2e-6);
-    assert(std::abs(scene_b.altitude - 7.0) < 1e-9);
+    assert(std::abs(scene_b.altitude - 0.3) < 1e-9);
     assert(std::abs(scene_b.yaw_degrees + 90.0) < 1e-9);
     assert(portable_site::isPositionWithinEnvelope(
         anchor,
@@ -145,7 +146,7 @@ int main() {
         20.0));
 
     const auto outside = portable_site::targetFromField(
-        anchor, 20.1, 0.0, 7.0, 180.0);
+        anchor, 20.1, 0.0, 0.3, 180.0);
     assert(!portable_site::isPositionWithinEnvelope(
         anchor,
         outside.latitude,
