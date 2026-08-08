@@ -226,6 +226,19 @@ def is_ground_ready(status: dict) -> bool:
     )
 
 
+def is_mode_switch_safe(status: dict) -> bool:
+    speed = status.get("speed") or {}
+    try:
+        total_speed = abs(float(speed.get("total", 999)))
+    except (TypeError, ValueError):
+        return False
+    return (
+        str(status.get("flight_path", "")).startswith("STANDBY")
+        and status.get("armed") is False
+        and total_speed <= 0.10
+    )
+
+
 def flight_mode_name(value: int) -> str:
     if value == 1:
         return "仿真"
@@ -400,14 +413,10 @@ def mode_switch_preflight() -> None:
     ensure_no_controllers("切换模式")
 
     status = read_remote_json(STATUS_COMMAND, "无人机状态")
-    position = status.get("position") or {}
-    on_ground = (
-        str(status.get("flight_path", "")).startswith("STANDBY")
-        and status.get("armed") is False
-        and abs(relative_ground_altitude(position)) <= 0.10
-    )
-    if not on_ground:
-        raise RuntimeError("切换模式前必须落地待机、未解锁且相对起降点高度为 0")
+    if not is_mode_switch_safe(status):
+        raise RuntimeError(
+            "切换模式前必须处于 STANDBY、未解锁、速度接近 0 且没有控制程序"
+        )
 
 
 def set_environment(environment: str) -> int:

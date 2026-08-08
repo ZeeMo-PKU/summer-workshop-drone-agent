@@ -77,6 +77,22 @@ class GroundStateTests(unittest.TestCase):
         del status["position"]["relative_dock_altitude"]
         self.assertTrue(drone_operator.is_ground_ready(status))
 
+    def test_mode_switch_allows_stationary_ground_with_shifted_altitude(self):
+        status = self.make_status(relative_altitude=-2.15)
+        status["speed"] = {"total": 0.0}
+        self.assertTrue(drone_operator.is_mode_switch_safe(status))
+
+    def test_mode_switch_rejects_motion(self):
+        status = self.make_status(relative_altitude=-2.15)
+        status["speed"] = {"total": 0.5}
+        self.assertFalse(drone_operator.is_mode_switch_safe(status))
+
+    def test_mode_switch_rejects_armed_aircraft(self):
+        status = self.make_status(relative_altitude=-2.15)
+        status["speed"] = {"total": 0.0}
+        status["armed"] = True
+        self.assertFalse(drone_operator.is_mode_switch_safe(status))
+
 
 class CommandTests(unittest.TestCase):
     @mock.patch.object(drone_operator, "run_remote")
