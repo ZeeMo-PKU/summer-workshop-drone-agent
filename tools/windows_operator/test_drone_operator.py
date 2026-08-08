@@ -20,9 +20,15 @@ class ArgumentTests(unittest.TestCase):
             "classmate-sim",
             "classmate-real",
             "classmate-dry",
+            "classmate-manual-sim",
+            "classmate-manual-real",
+            "classmate-manual-dry",
+            "classmate-first",
+            "classmate-next",
             "stop-test",
             "stop-match",
             "stop-classmate",
+            "stop-classmate-manual",
         ]
         for action in actions:
             with self.subTest(action=action):
@@ -151,6 +157,66 @@ class CommandTests(unittest.TestCase):
         command = foreground.call_args.args[0]
         self.assertIn("exec ./match --execute", command)
         self.assertNotIn("--origin", command)
+
+    @mock.patch.object(drone_operator.ProxyTunnel, "close")
+    @mock.patch.object(drone_operator.ProxyTunnel, "start")
+    @mock.patch.object(drone_operator, "run_foreground", return_value=0)
+    @mock.patch.object(drone_operator, "install_manual_api_key")
+    @mock.patch.object(drone_operator, "ensure_build_current")
+    @mock.patch.object(drone_operator, "preflight")
+    def test_classmate_manual_execute_uses_isolated_program(
+        self, preflight, build, install_key, foreground, proxy_start, proxy_close
+    ):
+        self.assertEqual(drone_operator.run_classmate_manual("sim", False), 0)
+        preflight.assert_called_once_with("sim")
+        build.assert_called_once_with("classmate-manual")
+        install_key.assert_called_once_with()
+        proxy_start.assert_called_once()
+        proxy_close.assert_called_once()
+        command = foreground.call_args.args[0]
+        self.assertIn("cd /opt/iking/match_agent_manual", command)
+        self.assertIn("./scripts/run.sh --execute --confirm-preflight", command)
+        self.assertNotIn("cd /opt/iking/match_agent &&", command)
+
+    @mock.patch.object(drone_operator.subprocess, "run")
+    @mock.patch.object(drone_operator, "load_local_api_key", return_value="test-key")
+    def test_manual_api_key_uses_stdin_not_command_line(self, load_key, run):
+        run.return_value.returncode = 0
+        run.return_value.stdout = ""
+        run.return_value.stderr = ""
+        drone_operator.install_manual_api_key()
+        load_key.assert_called_once_with()
+        self.assertEqual(run.call_args.kwargs["input"], "test-key\n")
+        command_arguments = " ".join(run.call_args.args[0])
+        self.assertNotIn("test-key", command_arguments)
+        self.assertIn("dashscope_api_key", command_arguments)
+
+    @mock.patch.object(drone_operator, "run_foreground", return_value=0)
+    @mock.patch.object(drone_operator, "ensure_build_current")
+    @mock.patch.object(drone_operator, "ensure_no_controllers")
+    def test_classmate_manual_dry_run_is_read_only(
+        self, no_controllers, build, foreground
+    ):
+        self.assertEqual(drone_operator.run_classmate_manual("sim", True), 0)
+        no_controllers.assert_called_once()
+        build.assert_called_once_with("classmate-manual")
+        self.assertEqual(
+            foreground.call_args.args[0],
+            "cd /opt/iking/match_agent_manual && exec ./scripts/run.sh --dry-run",
+        )
+
+    @mock.patch.object(drone_operator, "run_remote")
+    def test_manual_classmate_round_commands(self, run_remote):
+        run_remote.return_value.returncode = 0
+        self.assertEqual(drone_operator.trigger_classmate_round("first"), 0)
+        self.assertIn("match_agent_manual", run_remote.call_args.args[0])
+        self.assertIn("trigger-round.sh first", run_remote.call_args.args[0])
+        self.assertEqual(drone_operator.trigger_classmate_round("next"), 0)
+        self.assertIn("trigger-round.sh next", run_remote.call_args.args[0])
+
+    def test_manual_classmate_round_rejects_unknown_name(self):
+        with self.assertRaisesRegex(RuntimeError, "未知"):
+            drone_operator.trigger_classmate_round("third")
 
     @mock.patch.object(drone_operator, "run_remote")
     def test_stop_commands_target_exact_executables(self, run_remote):

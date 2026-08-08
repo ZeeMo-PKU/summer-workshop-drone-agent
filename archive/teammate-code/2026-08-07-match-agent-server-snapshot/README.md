@@ -16,9 +16,11 @@ active build and does not replace the stable repository source.
 - API key files, environment files, credentials, and unrelated server data.
 - The `codex/` subdirectory and the separate teammate handoff document.
 
-No credential literal was found in the selected source files, so no redaction
-was required. The source files were copied without modification. The server
-files and processes were not changed as part of this snapshot.
+A credential literal was found in `current/recognize_image.hpp`. The public
+archive replaces only that literal with an empty fallback and keeps the
+environment-variable path intact. `SHA256SUMS` therefore describes the
+redacted public archive, not the byte-identical server file. The server files
+and processes were not changed as part of the archival redaction.
 
 The current server `match.cpp` differs from the stable repository baseline and
 still defaults to an executing mode. Treat it as historical input for review,

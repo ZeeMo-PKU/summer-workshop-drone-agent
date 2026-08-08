@@ -1,4 +1,5 @@
 experiments/match_agent_flow_test/** text eol=lf
+experiments/classmate_manual_trigger/** text eol=lf
 experiments/match_agent_flow_test/test-data/**/*.jpg -text
 experiments/match_agent_flow_test/test-data/**/*.jpeg -text
 experiments/match_agent_flow_test/test-data/**/*.png -text

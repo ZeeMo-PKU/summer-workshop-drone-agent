@@ -50,6 +50,15 @@ b73940bbc3ef83678e2f2d9219d2b930c54e53b15ae5d0a90be10cdb795790f1
 真实比赛前仍需用能同时拍到真实题面和真实 `A/B/C` 标记的场景完成视觉验收，
 并重新确认电量、RTK、遥测、飞行模式和现场净空。
 
+## 同学程序电脑手动触发版
+
+`experiments/classmate_manual_trigger/` 以 2026-08-07 的同学程序只读快照为基线，
+保留原裁判事件入口，并新增电脑手动触发第一轮和续轮的信号入口。该版本使用独立目录、
+SDK `client_id`、构建产物和图片目录，不覆盖 `/opt/iking/match_agent/match`。
+代码已部署到 `/opt/iking/match_agent_manual`，ARM64 编译、手动信号测试以及
+“第一轮起飞 -> B 区稳定悬停 -> 退出返航落地”的仿真冒烟测试均已通过。
+题目识别、答题区拍照和投球仍需单独完成完整比赛闭环验收。
+
 ## 便携性能测试
 
 `experiments/portable_performance_test/` 是不依赖裁判系统和固定场地坐标的独立测试程序。它以启动位置和机头方向为临时坐标基准，执行参数化正方形路线，测量直飞、悬停、四次原地转向、双路拍照、闭环位置误差和定点返航。
@@ -63,6 +72,7 @@ src/match.cpp                 当前服务器源码基线
 experiments/match_agent_flow_test/  隔离的 Qwen 双图识别闭环
 experiments/match_agent_flow_test/patches/  学生练习裁判桥补丁
 experiments/match_agent_flow_test/test-data/  隔离流程的时间戳测试归档
+experiments/classmate_manual_trigger/  同学程序的电脑手动触发版
 experiments/portable_performance_test/  任意合规场地的独立性能测试
 archive/teammate-code/        同学代码与测试资料的只读时间戳存档
 docs/server-cleanup-20260807.md  服务器实验目录清理记录

@@ -92,6 +92,27 @@ cd /opt/iking/match_agent && HTTPS_PROXY=http://127.0.0.1:18088 ./match --execut
 重要：同学程序仍使用它自己的原场地坐标和方向，不属于任意场地程序。
 不要在未经重新标定的客户场地运行 classmate-sim 或 classmate-real。
 
+电脑手动触发版已部署，并通过“第一轮起飞、到 B 区悬停、返航落地”的仿真测试。
+启动器会自动读取桌面上的“识图API.txt”，安全安装到服务器私密目录；不要把密钥写进代码或上传 GitHub。
+
+仿真启动手动触发版：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" classmate-manual-sim
+
+实飞启动手动触发版：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" classmate-manual-real
+
+另开一个 CMD，手动启动第一轮：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" classmate-first
+
+上一轮允许续轮后，手动启动续轮：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" classmate-next
+
+停止手动触发版：
+python "%USERPROFILE%\Desktop\无人机CMD控制\drone_operator.py" stop-classmate-manual
+
+手动命令仅代替 MATCH_STARTED 和 NEXT_ROUND_STARTED；场景触发、题目和判题仍来自裁判系统。
+手动版使用独立目录 /opt/iking/match_agent_manual，不覆盖同学原程序。
+
 
 六、拍照、飞行、转弯、返航性能测试
 ------------------------------------

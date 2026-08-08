@@ -26,6 +26,7 @@ __pycache__/
 !experiments/match_agent_flow_test/test-data/**/*.jpeg
 !experiments/match_agent_flow_test/test-data/**/*.png
 !experiments/match_agent_flow_test/test-data/**/*.log
+!experiments/classmate_manual_trigger/test-data/**/*.log
 !archive/teammate-code/**/*.jpg
 !archive/teammate-code/**/*.jpeg
 !archive/teammate-code/**/*.png
@@ -34,6 +35,7 @@ __pycache__/
 # Local configuration and credentials
 .env
 .env.*
+**/.secrets/
 *.pem
 *.key
 *.p12

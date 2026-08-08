@@ -1,0 +1,49 @@
+识图代理已准备，正在启动同学程序的电脑手动触发版。
+[camera-preflight] camera=ov48 type=light
+[camera-preflight] camera=itl612 type=infrared
+[camera-preflight] camera=fishEye type=imx586
+[camera-preflight] passed
+[startup] WARNING: --execute enabled; flight commands may run
+[FramePool] open begin send=fishEye_share_send recv=fishEye_share_recv one_way=0 wait_ms=30000
+[ipc][I] ipc sender started, id=fishEye_share_recv sock=/tmp/media_ipc_memfd_fishEye_share_recv.sock
+[FramePool] create share_recv ok stream=fishEye_share_recv
+[FramePool] connect share_send ok stream=fishEye_share_send attempt=1
+[FramePool] open ok mode=pull send=fishEye_share_send one_way=0 (drained stale frames)
+[sdk] openFramePool(Front) status=0
+[FramePool] open begin send=arRtspStream_share_send recv=arRtspStream_share_recv one_way=0 wait_ms=30000
+[ipc][I] ipc sender started, id=arRtspStream_share_recv sock=/tmp/media_ipc_memfd_arRtspStream_share_recv.sock
+[FramePool] create share_recv ok stream=arRtspStream_share_recv
+[FramePool] connect share_send ok stream=arRtspStream_share_send attempt=1
+[FramePool] open ok mode=pull send=arRtspStream_share_send one_way=0 (drained stale frames)
+[sdk] openFramePool(PodVisibleLight) status=0
+[startup] SDK connected; waiting for referee or manual round trigger
+[ipc][I] ipc receiver connected, id=arRtspStream_share_recv epoch=1429119803155
+[ipc][I] ipc receiver connected, id=fishEye_share_recv epoch=1429087411188
+[manual-control] requested MATCH_STARTED
+[sdk] getModeStatus status=0
+[sdk] gripperClose status=0
+[sdk] takeOff(1.57m) status=0
+[match] takeoff accepted; waiting for POSITION
+[mode] TAKEOFF
+[mode] POSITION
+[match] takeoff completed
+[navigation] sending target: scene B
+[sdk] setPosition status=0
+[navigation] target=scene B distance=5.274475m altitude=1.472000m
+[navigation] target=scene B distance=5.274475m altitude=1.441000m
+[navigation] target=scene B distance=5.274475m altitude=1.426000m
+[navigation] target=scene B distance=5.274475m altitude=1.430000m
+[navigation] target=scene B distance=5.274475m altitude=1.439000m
+[navigation] target=scene B distance=4.615166m altitude=1.450000m
+[navigation] target=scene B distance=3.296547m altitude=1.478000m
+[navigation] target=scene B distance=2.637238m altitude=1.507000m
+[navigation] target=scene B distance=0.659309m altitude=1.544000m
+[navigation] target=scene B distance=0.000000m altitude=1.564000m
+[navigation] target=scene B distance=0.000000m altitude=1.565000m
+[navigation] reached scene B; holding POSITION
+[sdk] returnToHome(on exit) status=0
+[FramePool] close send=fishEye_share_send recv=fishEye_share_recv one_way=0
+[ipc][I] ipc sender stopped, id=fishEye_share_recv
+[FramePool] close send=arRtspStream_share_send recv=arRtspStream_share_recv one_way=0
+[ipc][I] ipc sender stopped, id=arRtspStream_share_recv
+[shutdown] disconnected

@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 
 SERVER = "root@10.8.82.81"
@@ -29,6 +30,10 @@ SSH_OPTIONS = [
 ]
 LOCAL_PROXY_PORT = 18089
 REMOTE_PROXY_PORT = 18088
+LOCAL_API_KEY_FILE = Path.home() / "Desktop" / "识图API.txt"
+MANUAL_API_KEY_FILE = (
+    "/opt/iking/match_agent_manual/.secrets/dashscope_api_key"
+)
 
 STATUS_COMMAND = "/opt/iking/match_agent/codex/drone-status"
 PARAMETER_READER = "/opt/iking/portable_performance_test/scripts/read-parameter.py"
@@ -37,6 +42,7 @@ MODE_SETTER = "/opt/iking/portable_performance_test/scripts/set-flight-mode.py"
 CONTROLLERS = {
     "match": "/opt/iking/match_agent_flow_test/build/match_flow",
     "classmate": "/opt/iking/match_agent/match",
+    "classmate-manual": "/opt/iking/match_agent_manual/build/match_manual",
     "test": "/opt/iking/portable_performance_test/build/portable_performance_test",
 }
 
@@ -77,6 +83,19 @@ BUILD_TARGETS = {
             "/opt/iking/portable_performance_test/tests/performance_plan_test.cpp",
         ],
     },
+    "classmate-manual": {
+        "binary": "/opt/iking/match_agent_manual/build/match_manual",
+        "build_script": "/opt/iking/match_agent_manual/scripts/build.sh",
+        "inputs": [
+            "/opt/iking/match_agent_manual/CMakeLists.txt",
+            "/opt/iking/match_agent_manual/src/match_manual.cpp",
+            "/opt/iking/match_agent_manual/src/camera_preflight.cpp",
+            "/opt/iking/match_agent_manual/src/recognize_image.hpp",
+            "/opt/iking/match_agent_manual/scripts/run.sh",
+            "/opt/iking/match_agent_manual/scripts/trigger-round.sh",
+            "/opt/iking/match_agent_manual/tests/manual_trigger_contract_test.py",
+        ],
+    },
 }
 
 
@@ -110,6 +129,43 @@ def require_ssh() -> None:
         raise RuntimeError("Windows 未找到 ssh，请先安装 OpenSSH 客户端")
 
 
+def load_local_api_key() -> str:
+    try:
+        api_key = LOCAL_API_KEY_FILE.read_text(encoding="utf-8-sig").strip()
+    except OSError as error:
+        raise RuntimeError(
+            f"无法读取识图密钥文件：{LOCAL_API_KEY_FILE}"
+        ) from error
+    if not api_key or "\n" in api_key or "\r" in api_key:
+        raise RuntimeError("识图密钥文件必须只包含一行非空密钥")
+    return api_key
+
+
+def install_manual_api_key() -> None:
+    api_key = load_local_api_key()
+    command = (
+        "set -eu; umask 077; "
+        "d=/opt/iking/match_agent_manual/.secrets; mkdir -p \"$d\"; "
+        "t=\"$d/dashscope_api_key.tmp.$$\"; "
+        "trap 'rm -f \"$t\"' EXIT; "
+        "IFS= read -r key; [ -n \"$key\" ]; "
+        "printf '%s\\n' \"$key\" > \"$t\"; chmod 600 \"$t\"; "
+        f"mv \"$t\" {MANUAL_API_KEY_FILE}; trap - EXIT"
+    )
+    result = subprocess.run(
+        ssh_arguments(command),
+        input=api_key + "\n",
+        check=False,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise RuntimeError(f"无法安全安装识图密钥：{detail}")
+
+
 def read_remote_json(command: str, description: str) -> dict:
     result = run_remote(command, capture=True)
     if result.returncode != 0:
@@ -128,6 +184,7 @@ def list_controllers() -> list[tuple[int, str]]:
         "case \"$e\" in "
         "/opt/iking/match_agent_flow_test/build/match_flow|"
         "/opt/iking/match_agent/match|"
+        "/opt/iking/match_agent_manual/build/match_manual|"
         "/opt/iking/portable_performance_test/build/portable_performance_test) "
         "printf '%s\\t%s\\n' \"$p\" \"$e\";; esac; done"
     )
@@ -534,6 +591,35 @@ def run_classmate(environment: str, dry_run: bool) -> int:
         proxy.close()
 
 
+def run_classmate_manual(environment: str, dry_run: bool) -> int:
+    if dry_run:
+        ensure_no_controllers("启动只读监听")
+        ensure_build_current("classmate-manual")
+        return run_foreground(
+            "cd /opt/iking/match_agent_manual && "
+            "exec ./scripts/run.sh --dry-run"
+        )
+
+    preflight(environment)
+    ensure_build_current("classmate-manual")
+    install_manual_api_key()
+    proxy = ProxyTunnel()
+    try:
+        proxy.start(
+            "https://ws-sxeumotzb6ouodsm.cn-beijing.maas.aliyuncs.com/"
+        )
+        print("识图代理已准备，正在启动同学程序的电脑手动触发版。")
+        command = (
+            "cd /opt/iking/match_agent_manual && "
+            f"HTTPS_PROXY=http://127.0.0.1:{REMOTE_PROXY_PORT} "
+            f"HTTP_PROXY=http://127.0.0.1:{REMOTE_PROXY_PORT} "
+            "exec ./scripts/run.sh --execute --confirm-preflight"
+        )
+        return run_foreground(command)
+    finally:
+        proxy.close()
+
+
 def stop_controller(name: str) -> int:
     executable = CONTROLLERS[name]
     command = (
@@ -551,6 +637,16 @@ def trigger_match_round(round_name: str) -> int:
         raise RuntimeError("未知的比赛轮次触发命令")
     command = (
         "cd /opt/iking/match_agent_flow_test && "
+        f"exec ./scripts/trigger-round.sh {round_name}"
+    )
+    return run_remote(command).returncode
+
+
+def trigger_classmate_round(round_name: str) -> int:
+    if round_name not in {"first", "next"}:
+        raise RuntimeError("未知的同学程序轮次触发命令")
+    command = (
+        "cd /opt/iking/match_agent_manual && "
         f"exec ./scripts/trigger-round.sh {round_name}"
     )
     return run_remote(command).returncode
@@ -576,9 +672,15 @@ def build_parser() -> argparse.ArgumentParser:
             "classmate-sim",
             "classmate-real",
             "classmate-dry",
+            "classmate-manual-sim",
+            "classmate-manual-real",
+            "classmate-manual-dry",
+            "classmate-first",
+            "classmate-next",
             "stop-test",
             "stop-match",
             "stop-classmate",
+            "stop-classmate-manual",
         ],
     )
     parser.add_argument(
@@ -631,6 +733,16 @@ def main() -> int:
         return run_classmate("real", False)
     if args.action == "classmate-dry":
         return run_classmate("sim", True)
+    if args.action == "classmate-manual-sim":
+        return run_classmate_manual("sim", False)
+    if args.action == "classmate-manual-real":
+        return run_classmate_manual("real", False)
+    if args.action == "classmate-manual-dry":
+        return run_classmate_manual("sim", True)
+    if args.action == "classmate-first":
+        return trigger_classmate_round("first")
+    if args.action == "classmate-next":
+        return trigger_classmate_round("next")
     if args.action.startswith("stop-"):
         return stop_controller(args.action.removeprefix("stop-"))
     raise RuntimeError("未知操作")

@@ -26,7 +26,7 @@ inline constexpr const char* kApiUrl =
     "compatible-mode/v1/chat/completions";
 
 inline constexpr const char* kModelName = "qwen3-vl-plus";
-// API key：仅从环境变量读取；历史快照中的硬编码值已为公开归档脱敏。
+// API key：仅从环境变量 DASHSCOPE_API_KEY 读取，禁止写入源码。
 inline constexpr const char* kFallbackApiKey =
     "";
 inline constexpr int kMaxImageDim = 1280;   // 压缩后图片最长边
