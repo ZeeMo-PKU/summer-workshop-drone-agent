@@ -43,7 +43,7 @@ using namespace std::chrono_literals;
 namespace {
 
 constexpr float kTaskZoneRelativeAltitude = 0.3f;
-constexpr float kTakeoffHeight = kTaskZoneRelativeAltitude;
+constexpr float kTakeoffHeight = 1.57f;
 constexpr int kRpcTimeoutMs = 5000;
 
 // 题目区使用前向相机；答题区使用吊舱可见光相机。
@@ -665,13 +665,14 @@ bool captureOrValidatePortableSiteAnchor() {
     return true;
 }
 
-bool waitForMode(iking::drone::Client& client,
-                 iking::drone::DRONE_MODE_STATUS_t target,
-                 std::chrono::seconds timeout,
-                 bool can_be_preempted) {
+bool waitForTakeoffCompletion(iking::drone::Client& client,
+                              std::chrono::seconds timeout,
+                              bool can_be_preempted) {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     int failed_queries = 0;
     int previous_mode = -1;
+    bool takeoff_observed = false;
+    int standby_after_takeoff = 0;
 
     while (std::chrono::steady_clock::now() < deadline) {
         if (g_stop.load() && can_be_preempted) return false;
@@ -687,7 +688,19 @@ bool waitForMode(iking::drone::Client& client,
                 print(std::string("[mode] ") + modeName(mode));
                 previous_mode = static_cast<int>(mode);
             }
-            if (mode == target) return true;
+            if (mode == iking::drone::POSITION) return true;
+            if (mode == iking::drone::TAKEOFF) {
+                takeoff_observed = true;
+                standby_after_takeoff = 0;
+            } else if (mode == iking::drone::STANDBY && takeoff_observed) {
+                if (++standby_after_takeoff >= 3) {
+                    print("[match] takeoff returned to STANDBY before "
+                          "reaching POSITION");
+                    return false;
+                }
+            } else {
+                standby_after_takeoff = 0;
+            }
         }
 
         std::this_thread::sleep_for(500ms);
@@ -704,13 +717,13 @@ bool takeOffAfterGripperClosed(iking::drone::Client& client) {
         return false;
     }
 
-    if (!isOk(client.takeOff(kTakeoffHeight, kRpcTimeoutMs), "takeOff(0.3m)")) {
+    if (!isOk(client.takeOff(kTakeoffHeight, kRpcTimeoutMs), "takeOff(1.57m)")) {
         return false;
     }
     g_flight_commanded_by_process.store(true);
 
     print("[match] takeoff accepted; waiting for POSITION");
-    const bool reached = waitForMode(client, iking::drone::POSITION, 90s, true);
+    const bool reached = waitForTakeoffCompletion(client, 90s, true);
     print(reached ? "[match] takeoff completed" :
                     "[match] takeoff was not confirmed");
     return reached;
